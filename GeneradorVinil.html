@@ -390,7 +390,7 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // 4B. Procesar Imagen (NUEVO)
+        // 4B. Procesar Imagen
         document.getElementById('image-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -398,7 +398,6 @@
             const reader = new FileReader();
             reader.onload = function(evento) {
                 imagenActualBase64 = evento.target.result;
-                // Averiguar proporciones
                 const img = new Image();
                 img.onload = function() {
                     proporcionImagen = img.width / img.height;
