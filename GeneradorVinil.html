@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Gang Sheets PRO (Tetris Auto-Nesting)</title>
+    <title>Generador Gang Sheets - Nivel Industrial (Tetris)</title>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
         /* Diseño Visual, Intuitivo y Responsivo */
@@ -51,6 +51,7 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            z-index: 10;
         }
 
         .controls-panel h2 {
@@ -119,10 +120,7 @@
             border-left: 3px solid var(--primary-color); word-break: break-all;
         }
 
-        /* Opciones de Configuración Avanzada */
-        .advanced-options {
-            display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.85rem; color: #d1d5db;
-        }
+        .advanced-options { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.85rem; color: #d1d5db; }
         .advanced-options input[type="checkbox"] { accent-color: var(--primary-color); cursor: pointer; }
 
         /* Panel Derecho */
@@ -152,9 +150,9 @@
 
         #svg-workspace { width: 100%; height: 100%; display: block; }
 
-        .draggable-text { cursor: grab; user-select: none; touch-action: none; }
-        .draggable-text:active { cursor: grabbing; }
-        .draggable-text:hover { opacity: 0.8; }
+        .draggable-piece { cursor: grab; user-select: none; touch-action: none; }
+        .draggable-piece:active { cursor: grabbing; }
+        .draggable-piece:hover text { opacity: 0.8; }
 
         @media (max-width: 1024px) {
             .app-container { flex-direction: column; }
@@ -212,7 +210,7 @@
 
             <div class="dimensions-container">
                 <div class="form-group">
-                    <label>Alto Físico (cm):</label>
+                    <label>Altura FÍSICA (cm):</label>
                     <input type="number" id="alto-numero-input" value="8" min="1" step="0.5">
                 </div>
                 <div class="form-group">
@@ -231,13 +229,13 @@
                 <div style="color: #6b7280; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>
             </div>
 
-            <h2>3. Generar Tetris</h2>
+            <h2>3. Acomodo Industrial</h2>
             <div class="advanced-options">
                 <input type="checkbox" id="permitir-rotacion" checked>
-                <label for="permitir-rotacion">Permitir rotar 90° para ahorrar espacio</label>
+                <label for="permitir-rotacion">Activar modo Tetris (rotar 90°)</label>
             </div>
             
-            <button class="btn-auto" onclick="autoAcomodar()">⚡ Acomodo Inteligente (Tetris)</button>
+            <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar Acomodo Exacto</button>
             <div class="button-row">
                 <button class="btn-clear" style="flex: 1;" onclick="vaciarCola()">🗑️ Vaciar Cola</button>
                 <button class="btn-exportar-png" style="flex: 2;" onclick="descargarPNG()">💾 Descargar PNG</button>
@@ -257,14 +255,14 @@
             </div>
             
             <div class="canvas-container" id="canvas-wrapper">
-                <svg id="medidor-oculto" style="visibility: hidden; position: absolute; width: 0; height: 0;"></svg>
+                <svg id="medidor-oculto" style="position: absolute; top: -10000px; left: -10000px; visibility: hidden;"></svg>
                 
                 <svg id="svg-workspace" xmlns="http://www.w3.org/2000/svg">
                     <defs id="svg-defs"></defs>
                     <g id="texto-container"></g>
                 </svg>
             </div>
-            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px; text-align: center;">* Arrastra los elementos libremente. Doble clic (o doble toque) para borrar uno.</p>
+            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px; text-align: center;">* Arrastra los grupos libremente. Doble clic (o doble toque) para borrar uno.</p>
         </div>
     </div>
 
@@ -283,7 +281,7 @@
 
         let fuentesPersonalizadas = {};
         let colaProduccion = []; 
-        const PIXELES_POR_CM = 100; // Resolución virtual altísima
+        const PIXELES_POR_CM = 100; // Alta resolución virtual
 
         // 1. Configuración de pantalla
         function actualizarLienzo() {
@@ -348,7 +346,6 @@
                 color: colorTexto,
                 cantidad: cantidad
             });
-
             actualizarVistaCola();
         }
 
@@ -357,7 +354,6 @@
                 queueList.innerHTML = '<div style="color: #6b7280; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>';
                 return;
             }
-
             queueList.innerHTML = '';
             colaProduccion.forEach((item, index) => {
                 const div = document.createElement('div');
@@ -379,178 +375,209 @@
         }
 
         // ==========================================
-        // 4. MOTOR DE ACOMODO INDUSTRIAL (TETRIS)
+        // 4. MOTOR DE TINTA Y EMPAQUETADO (GUILLOTINE)
         // ==========================================
         
-        // Función auxiliar para obtener el ancho exacto sin el padding asqueroso del SVG
-        function medirAnchoReal(texto, fuente, tamanoPx) {
+        // Esta función averigua exactamente cuánto mide la letra físicamente, ignorando espacios en blanco de la fuente.
+        function medirTintaExacta(texto, fuente, altoDeseadoCm) {
+            const altoDeseadoPx = altoDeseadoCm * PIXELES_POR_CM;
+            
             medidorOculto.innerHTML = '';
             const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
             t.textContent = texto;
             t.setAttribute('font-family', fuente);
-            t.setAttribute('font-size', `${tamanoPx}px`);
+            // Tamaño gigante para tener precisión decimal al medir
+            t.setAttribute('font-size', '1000px'); 
             medidorOculto.appendChild(t);
-            // Tomamos solo el ancho, la altura la forzaremos nosotros matemáticamente.
-            return t.getBBox().width;
+            
+            const cajaBase = t.getBBox();
+            
+            // Regla de 3: ¿Qué font-size necesito para que el ALTO VISUAL sea exactamente altoDeseadoPx?
+            const factorEscala = altoDeseadoPx / cajaBase.height;
+            const fontSizeReal = 1000 * factorEscala;
+            
+            // Aplicamos el tamaño real y volvemos a medir
+            t.setAttribute('font-size', `${fontSizeReal}px`);
+            const cajaFinal = t.getBBox();
+            
+            medidorOculto.innerHTML = ''; // Limpiar RAM
+            
+            return {
+                texto: texto,
+                fuente: fuente,
+                color: '#ffffff',
+                fontSize: fontSizeReal,
+                ancho: cajaFinal.width,
+                alto: cajaFinal.height, 
+                // Estos offsets son la magia que recorta el borde invisible de la tipografía
+                offsetX: -cajaFinal.x,
+                offsetY: -cajaFinal.y,
+                area: cajaFinal.width * cajaFinal.height
+            };
         }
 
-        function autoAcomodar() {
-            if (colaProduccion.length === 0) {
-                alert("Añade elementos a la cola primero.");
-                return;
+        // Algoritmo matemático para empaquetado 2D (MaxRects / Guillotine)
+        class GuillotinePacker {
+            constructor(width, height) {
+                // Iniciamos con todo el lienzo libre
+                this.freeRects = [{x: 0, y: 0, w: width, h: height}];
             }
 
+            pack(w, h, rotatable) {
+                let bestNode = null;
+                let bestIndex = -1;
+                let rotated = false;
+                let minArea = Infinity; 
+
+                // Buscamos el espacio libre más apretado donde quepa la pieza (Best Area Fit)
+                for (let i = 0; i < this.freeRects.length; i++) {
+                    let rect = this.freeRects[i];
+                    
+                    if (w <= rect.w && h <= rect.h) {
+                        if (rect.w * rect.h < minArea) {
+                            bestNode = {x: rect.x, y: rect.y, w: w, h: h};
+                            bestIndex = i;
+                            rotated = false;
+                            minArea = rect.w * rect.h;
+                        }
+                    }
+                    if (rotatable && h <= rect.w && w <= rect.h) {
+                        if (rect.w * rect.h < minArea) {
+                            bestNode = {x: rect.x, y: rect.y, w: h, h: w}; 
+                            bestIndex = i;
+                            rotated = true;
+                            minArea = rect.w * rect.h;
+                        }
+                    }
+                }
+
+                if (bestIndex !== -1) {
+                    this.split(bestIndex, bestNode);
+                    return { x: bestNode.x, y: bestNode.y, rotated: rotated };
+                }
+                return null; 
+            }
+
+            split(index, placedRect) {
+                let rect = this.freeRects[index];
+                this.freeRects.splice(index, 1);
+
+                let rightW = rect.w - placedRect.w;
+                let bottomH = rect.h - placedRect.h;
+
+                // Cortamos el espacio sobrante en dos nuevos rectángulos útiles
+                if (rightW > 0 || bottomH > 0) {
+                    if (rightW > bottomH) {
+                        if (rightW > 0) this.freeRects.push({x: rect.x + placedRect.w, y: rect.y, w: rightW, h: placedRect.h});
+                        if (bottomH > 0) this.freeRects.push({x: rect.x, y: rect.y + placedRect.h, w: rect.w, h: bottomH});
+                    } else {
+                        if (rightW > 0) this.freeRects.push({x: rect.x + placedRect.w, y: rect.y, w: rightW, h: rect.h});
+                        if (bottomH > 0) this.freeRects.push({x: rect.x, y: rect.y + placedRect.h, w: placedRect.w, h: bottomH});
+                    }
+                }
+            }
+        }
+
+        async function autoAcomodar() {
+            if (colaProduccion.length === 0) { alert("Añade elementos a la cola."); return; }
             limpiarLienzo();
             
             const anchoLienzoPx = (parseFloat(anchoInput.value) || 57) * PIXELES_POR_CM;
             const altoLienzoPx = (parseFloat(altoInput.value) || 112) * PIXELES_POR_CM;
             
-            // Margen ajustado: Reducido a 0.2cm (20px) para que estén pegados pero sin tocarse
-            const margenPx = 20; 
+            // Margen de protección entre impresiones (10 pixeles = 1 milímetro para que aproveches al MÁXIMO)
+            const margenPx = 10; 
+            const packer = new GuillotinePacker(anchoLienzoPx, altoLienzoPx);
+            const permitirRotacion = checkRotacion.checked;
 
-            // 1. DESGLOSAR Y ORDENAR (El secreto del Tetris)
+            statusInfo.textContent = 'Calculando tintas...';
+
+            // 1. Extraer medidas exactas de todas las piezas requeridas
             let piezas = [];
             colaProduccion.forEach(item => {
-                const altoPx = item.altoCm * PIXELES_POR_CM;
-                const anchoPx = medirAnchoReal(item.texto, item.fuente, altoPx);
+                const piezaMaestra = medirTintaExacta(item.texto, item.fuente, item.altoCm);
+                piezaMaestra.color = item.color;
                 
                 for (let i = 0; i < item.cantidad; i++) {
-                    piezas.push({
-                        texto: item.texto,
-                        fuente: item.fuente,
-                        color: item.color,
-                        alto: altoPx,
-                        ancho: anchoPx,
-                        area: altoPx * anchoPx
-                    });
+                    piezas.push({...piezaMaestra}); // Clonar para cada cantidad
                 }
             });
 
-            // ORDENAMIENTO ESTRICTO: Por Área mayor primero, y luego por altura. 
-            // Esto garantiza que los monstruos grandes se acomoden primero y los chiquitos tapen huecos.
+            // 2. Ordenar de mayor a menor área (Clave del Tetris perfecto)
             piezas.sort((a, b) => b.area - a.area || b.alto - a.alto);
 
-            // 2. SISTEMA DE FILAS INTELIGENTES (Shelf Packing)
-            let filas = [{ y: margenPx, alturaFila: 0, espacioOcupadoX: margenPx }];
-            
             let totalAcomodados = 0;
             let elementosNoCupieron = 0;
-            const permitirRotacion = checkRotacion.checked;
 
+            // 3. Acomodar matemáticamente y dibujar
             piezas.forEach(pieza => {
-                let acomodado = false;
-                let rotado = false;
-                let anchoUsar = pieza.ancho;
-                let altoUsar = pieza.alto;
-
-                // Intentar buscar una fila existente donde quepa
-                for (let fila of filas) {
-                    // Prueba Normal
-                    if (fila.espacioOcupadoX + anchoUsar + margenPx <= anchoLienzoPx && fila.alturaFila >= altoUsar) {
-                        dibujarPieza(pieza, fila.espacioOcupadoX, fila.y, false);
-                        fila.espacioOcupadoX += anchoUsar + margenPx;
-                        acomodado = true;
-                        totalAcomodados++;
-                        break;
-                    }
-                    
-                    // Prueba Rotando 90° (Si está activado)
-                    if (permitirRotacion && fila.espacioOcupadoX + altoUsar + margenPx <= anchoLienzoPx && fila.alturaFila >= anchoUsar) {
-                        dibujarPieza(pieza, fila.espacioOcupadoX, fila.y, true);
-                        fila.espacioOcupadoX += altoUsar + margenPx;
-                        acomodado = true;
-                        totalAcomodados++;
-                        break;
-                    }
-                }
-
-                // Si no cupo en filas existentes, crear una nueva fila abajo
-                if (!acomodado) {
-                    // ¿Cuál es el límite inferior de la última fila creada?
-                    let ultimaFila = filas[filas.length - 1];
-                    let nuevaY = ultimaFila.y + ultimaFila.alturaFila + margenPx;
-
-                    // Decidir si entra normal o si conviene rotarlo para que consuma menos altura de material
-                    let crearRotado = false;
-                    if (permitirRotacion && pieza.ancho > pieza.alto) {
-                        // Si la palabra es muy larga, rotarla ahorra espacio hacia los lados
-                        crearRotado = true;
-                        anchoUsar = pieza.alto;
-                        altoUsar = pieza.ancho;
-                    }
-
-                    // Verificar si nos salimos del lienzo por completo (se acabó el rollo)
-                    if (nuevaY + altoUsar > altoLienzoPx) {
-                        // Último intento: Si no lo íbamos a rotar, forzamos rotación a ver si milagrosamente cabe
-                        if (permitirRotacion && !crearRotado && nuevaY + pieza.ancho <= altoLienzoPx) {
-                            crearRotado = true;
-                            anchoUsar = pieza.alto;
-                            altoUsar = pieza.ancho;
-                        } else {
-                            elementosNoCupieron++;
-                            return; // Terminamos con esta pieza, no cabe
-                        }
-                    }
-
-                    // Creamos la nueva fila
-                    filas.push({ y: nuevaY, alturaFila: altoUsar, espacioOcupadoX: margenPx + anchoUsar + margenPx });
-                    dibujarPieza(pieza, margenPx, nuevaY, crearRotado);
+                // Le pasamos al motor el tamaño exacto + el pequeño margen de corte
+                let result = packer.pack(pieza.ancho + margenPx, pieza.alto + margenPx, permitirRotacion);
+                
+                if (result) {
+                    dibujarPiezaExacta(pieza, result.x, result.y, result.rotated);
                     totalAcomodados++;
+                } else {
+                    elementosNoCupieron++;
                 }
             });
 
             if (elementosNoCupieron > 0) {
-                statusInfo.textContent = `Acomodados: ${totalAcomodados}. Faltaron: ${elementosNoCupieron}`;
+                statusInfo.textContent = `Listos: ${totalAcomodados} | Faltaron: ${elementosNoCupieron}`;
                 statusInfo.style.color = 'var(--danger-color)';
-                alert(`¡Máximo alcanzado! Acomodó ${totalAcomodados} piezas optimizadas. ${elementosNoCupieron} no entraron. Descarga este bloque y genera los faltantes.`);
+                alert(`¡Material lleno al milímetro! Se empaquetaron ${totalAcomodados} piezas. ${elementosNoCupieron} se quedaron fuera. Descarga este bloque y genera los demás.`);
             } else {
-                statusInfo.textContent = `¡Tetris Perfecto! ${totalAcomodados} piezas.`;
+                statusInfo.textContent = `¡Tetris Perfecto! ${totalAcomodados} piezas listas.`;
                 statusInfo.style.color = 'var(--secondary-color)';
             }
         }
 
-        // Función que dibuja en el SVG
-        function dibujarPieza(pieza, x, y, rotar) {
-            const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            textoNode.textContent = pieza.texto;
-            textoNode.setAttribute('fill', pieza.color); 
-            textoNode.setAttribute('font-family', pieza.fuente);
-            textoNode.setAttribute('font-size', `${pieza.alto}px`); 
-            
-            // LA MAGIA PARA QUITAR LOS HUECOS: Alinear estrictamente a la coordenada Y superior visual
-            textoNode.setAttribute('dominant-baseline', 'text-before-edge'); 
-            textoNode.setAttribute('class', 'draggable-text');
+        // Dibuja el grupo respetando los recortes de tinta.
+        function dibujarPiezaExacta(pieza, x, y, rotado) {
+            // Contenedor principal que se puede mover
+            const gMaster = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            gMaster.setAttribute('class', 'draggable-piece');
+            gMaster.setAttribute('transform', `translate(${x}, ${y})`);
+            gMaster.setAttribute('data-x', x);
+            gMaster.setAttribute('data-y', y);
+            gMaster.setAttribute('data-rotated', rotado);
 
-            if (rotar) {
-                // Matemáticas de rotación: Desplazar, rotar sobre el propio eje.
-                // Como el punto de anclaje es arriba-izquierda, al rotar -90, se sale de la caja.
-                // Necesitamos empujarlo hacia abajo la distancia de su ancho original.
-                textoNode.setAttribute('transform', `translate(${x}, ${y + pieza.ancho}) rotate(-90)`);
-                // Guardamos data interna para que el drag & drop sepa que está rotado
-                textoNode.setAttribute('data-rotated', 'true');
-            } else {
-                textoNode.setAttribute('x', x);
-                textoNode.setAttribute('y', y);
+            // Contenedor secundario para la rotación (se acomoda solo para no salirse de la caja)
+            const gRotacion = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            if (rotado) {
+                // Si rotamos, empujamos el eje Y hacia abajo exactamente el ancho del texto original
+                gRotacion.setAttribute('transform', `translate(0, ${pieza.ancho}) rotate(-90)`);
             }
 
-            // Eliminar al doble clic (o doble toque)
-            textoNode.addEventListener('dblclick', function() { textoContainer.removeChild(textoNode); });
+            const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textoNode.textContent = pieza.texto;
+            textoNode.setAttribute('fill', pieza.color);
+            textoNode.setAttribute('font-family', pieza.fuente);
+            textoNode.setAttribute('font-size', `${pieza.fontSize}px`);
+            
+            // Aplicamos los Offsets calculados para eliminar el padding invisible
+            textoNode.setAttribute('x', pieza.offsetX);
+            textoNode.setAttribute('y', pieza.offsetY);
+
+            gRotacion.appendChild(textoNode);
+            gMaster.appendChild(gRotacion);
+            textoContainer.appendChild(gMaster);
+
+            // Eliminar elemento con doble clic o doble tap
+            gMaster.addEventListener('dblclick', function() { textoContainer.removeChild(gMaster); });
             let lastTouchTime = 0;
-            textoNode.addEventListener('touchend', function(e) {
+            gMaster.addEventListener('touchend', function(e) {
                 let tapLength = new Date().getTime() - lastTouchTime;
-                if (tapLength < 500 && tapLength > 0) { textoContainer.removeChild(textoNode); e.preventDefault(); }
+                if (tapLength < 500 && tapLength > 0) { textoContainer.removeChild(gMaster); e.preventDefault(); }
                 lastTouchTime = new Date().getTime();
             });
-
-            textoContainer.appendChild(textoNode);
         }
 
         // ==========================================
-        // 5. ARRASTRAR Y SOLTAR (Soporte Universal)
+        // 5. ARRASTRAR Y SOLTAR (Modificado para Grupos Exactos)
         // ==========================================
         let elementoSeleccionado = null;
         let offset = { x: 0, y: 0 };
-        let esRotado = false;
 
         function obtenerPosicionEvent(evt) {
             let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -560,24 +587,18 @@
         }
 
         function iniciarArrastre(evt) {
-            if (evt.target.classList.contains('draggable-text')) {
-                elementoSeleccionado = evt.target;
-                esRotado = elementoSeleccionado.getAttribute('data-rotated') === 'true';
+            let target = evt.target;
+            // Buscamos el grupo contenedor (padre de los textos)
+            while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') {
+                target = target.parentNode;
+            }
+            if (target && target.classList?.contains('draggable-piece')) {
+                elementoSeleccionado = target;
                 let pos = obtenerPosicionEvent(evt);
-                
-                if (esRotado) {
-                    // Extraer los valores del "translate(X, Y)"
-                    let transformStr = elementoSeleccionado.getAttribute('transform');
-                    let regex = /translate\(([\d.-]+),\s*([\d.-]+)\)/;
-                    let match = regex.exec(transformStr);
-                    if(match) {
-                        offset.x = pos.x - parseFloat(match[1]);
-                        offset.y = pos.y - parseFloat(match[2]);
-                    }
-                } else {
-                    offset.x = pos.x - parseFloat(elementoSeleccionado.getAttribute("x"));
-                    offset.y = pos.y - parseFloat(elementoSeleccionado.getAttribute("y"));
-                }
+                let currentX = parseFloat(elementoSeleccionado.getAttribute('data-x'));
+                let currentY = parseFloat(elementoSeleccionado.getAttribute('data-y'));
+                offset.x = pos.x - currentX;
+                offset.y = pos.y - currentY;
             }
         }
 
@@ -587,13 +608,9 @@
                 let pos = obtenerPosicionEvent(evt);
                 let newX = pos.x - offset.x;
                 let newY = pos.y - offset.y;
-
-                if (esRotado) {
-                    elementoSeleccionado.setAttribute("transform", `translate(${newX}, ${newY}) rotate(-90)`);
-                } else {
-                    elementoSeleccionado.setAttribute("x", newX);
-                    elementoSeleccionado.setAttribute("y", newY);
-                }
+                elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`);
+                elementoSeleccionado.setAttribute('data-x', newX);
+                elementoSeleccionado.setAttribute('data-y', newY);
             }
         }
 
@@ -609,12 +626,12 @@
         svgWorkspace.addEventListener('touchcancel', terminarArrastre);
 
         // ==========================================
-        // 6. EXPORTACIONES (Alta Definición)
+        // 6. EXPORTACIONES 
         // ==========================================
         function descargarPNG() {
             const anchoCm = parseFloat(anchoInput.value) || 57;
             const altoCm = parseFloat(altoInput.value) || 112;
-            const dpi = 59.055; // 150 DPI
+            const dpi = 59.055; 
             const canvas = document.createElement("canvas");
             canvas.width = Math.round(anchoCm * dpi);
             canvas.height = Math.round(altoCm * dpi);
@@ -628,12 +645,25 @@
             img.onload = function() {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const link = document.createElement("a");
-                link.download = `Corte_Tetris.png`;
+                link.download = `GangSheet_Tetris_Exacto.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
                 URL.revokeObjectURL(url);
             };
             img.src = url;
+        }
+
+        function descargarSVG() {
+            const svgData = new XMLSerializer().serializeToString(svgWorkspace);
+            const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.download = `GangSheet_Tetris_Exacto.svg`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         window.onload = actualizarLienzo;
