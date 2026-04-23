@@ -79,6 +79,7 @@
         .gallery-item:hover { transform: scale(1.05); border-color: var(--primary-color); z-index: 5; }
         .gallery-item img { max-height: 80px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; padding: 5px; }
         
+        /* Cajas de texto coloreadas por la IA */
         .char-mapper { width: 100% !important; text-align: center; font-weight: bold; font-size: 1.3rem !important; border: 2px solid var(--border-color) !important; color: white !important; transition: 0.3s; }
         .char-mapper.ocr-success { border-color: var(--secondary-color) !important; background-color: rgba(16, 185, 129, 0.1) !important; }
         .char-mapper.ocr-doubt { border-color: var(--danger-color) !important; background-color: rgba(239, 68, 68, 0.1) !important; }
@@ -342,7 +343,7 @@
         }
 
         // ==========================================
-        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA (CORRECCIÓN STRIDE MEMORIA)
+        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA EXACTA
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
@@ -414,10 +415,9 @@
                         let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
                         let data = imgData.data;
                         
-                        // CORRECCIÓN MAGISTRAL DEL STRIDE: Creamos un clon exacto de la región para que los bytes estén en fila
                         let maskRoi = mask.roi(rect);
                         maskClone = new cv.Mat();
-                        maskRoi.copyTo(maskClone); // ESTO EVITA LAS LÍNEAS HORIZONTALES (CORRUPCIÓN)
+                        maskRoi.copyTo(maskClone); 
                         let maskData = maskClone.data;
 
                         for (let j = 0; j < data.length; j += 4) { 
@@ -443,8 +443,18 @@
                             </div>
                         `);
 
-                        // Añadir a la fila de espera de la IA sin saturar la RAM
-                        ejecutarOCRAsincrono(base64, idPieza);
+                        // PREPARACIÓN DE IMAGEN PARA LA IA (Fondo blanco brillante para no confundirla)
+                        let ocrCanvas = document.createElement('canvas');
+                        let pad = 20; // Padding para que la IA pueda "respirar" alrededor de la letra
+                        ocrCanvas.width = rect.width + (pad * 2);
+                        ocrCanvas.height = rect.height + (pad * 2);
+                        let ocrCtx = ocrCanvas.getContext('2d');
+                        ocrCtx.fillStyle = '#ffffff';
+                        ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+                        ocrCtx.drawImage(tCanvas, pad, pad);
+                        
+                        // Mandamos a la IA la versión blanca optimizada
+                        ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
                         piezacount++;
                     }
                 }
@@ -456,13 +466,12 @@
                 alert("Error Visual: " + err); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
-                // LIMPIEZA ABSOLUTA DE MEMORIA C++
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
             }
         }
 
-        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR EN COLA (TESSERACT SEGURO)
+        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR EN COLA (TESSERACT)
         function ejecutarOCRAsincrono(base64Image, idPieza) {
             ocrQueue.push({ base64Image, idPieza });
             procesarFilaOCR();
@@ -475,6 +484,11 @@
             if (!tesseractWorker) {
                 try {
                     tesseractWorker = await Tesseract.createWorker('eng');
+                    // CONFIGURACIÓN ESTRICTA: Modo Caracter Único y Solo Caracteres Válidos
+                    await tesseractWorker.setParameters({
+                        tessedit_pageseg_mode: '10', 
+                        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ.,-'
+                    });
                 } catch(e) {
                     console.error("Error cargando Tesseract:", e);
                     isOcrRunning = false;
@@ -492,15 +506,18 @@
                     let cleanText = text.replace(/[^A-Za-z0-9ÁÉÍÓÚÑ.,-]/g, '').trim();
                     inputElement.classList.remove('ocr-loading');
                     
-                    if (confidence > 60 && cleanText.length > 0) {
+                    if (confidence > 40 && cleanText.length > 0) {
                         inputElement.value = cleanText[0];
                         inputElement.classList.add('ocr-success');
                     } else {
+                        inputElement.value = '';
                         inputElement.placeholder = "?";
                         inputElement.classList.add('ocr-doubt');
                     }
                 } catch (err) {
                     inputElement.classList.remove('ocr-loading');
+                    inputElement.value = '';
+                    inputElement.placeholder = "?";
                     inputElement.classList.add('ocr-doubt');
                 }
             }
