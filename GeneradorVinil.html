@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Automático de Gang Sheets (Responsivo)</title>
+    <title>Generador de Gang Sheets PRO (Tetris Auto-Nesting)</title>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
-        /* Diseño Visual, Intuitivo y Responsivo (CSS Completo) */
+        /* Diseño Visual, Intuitivo y Responsivo */
         :root {
             --primary-color: #f59e0b; 
             --primary-hover: #d97706;
@@ -19,10 +19,7 @@
             --border-color: #374151;
         }
 
-        /* Box-sizing crucial para responsividad real */
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
+        *, *::before, *::after { box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -43,7 +40,7 @@
             height: fit-content;
         }
 
-        /* Panel de Controles a la izquierda */
+        /* Panel Izquierdo */
         .controls-panel {
             background-color: var(--panel-bg);
             padding: 25px;
@@ -65,256 +62,110 @@
             font-size: 1.2rem;
         }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-weight: 600; font-size: 0.85rem; color: #9ca3af; }
 
-        .form-group label {
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #9ca3af;
-        }
-
-        .form-group input[type="text"], 
-        .form-group input[type="number"], 
-        .form-group select {
-            padding: 10px;
-            background-color: #374151;
-            color: white;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 1rem;
-            width: 100%;
+        .form-group input[type="text"], .form-group input[type="number"], .form-group select {
+            padding: 10px; background-color: #374151; color: white;
+            border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; width: 100%;
         }
 
         .form-group input[type="color"] {
-            width: 100%;
-            height: 40px;
-            padding: 2px;
-            background-color: #374151;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            cursor: pointer;
+            width: 100%; height: 40px; padding: 2px; background-color: #374151;
+            border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;
         }
 
         .form-group input[type="file"] {
-            padding: 8px;
-            background-color: #374151;
-            border: 1px dashed var(--primary-color);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            color: white;
-            cursor: pointer;
-            width: 100%;
-            overflow: hidden; /* Evita que nombres de archivo largos rompan el diseño */
+            padding: 8px; background-color: #374151; border: 1px dashed var(--primary-color);
+            border-radius: 6px; font-size: 0.85rem; color: white; cursor: pointer; width: 100%; overflow: hidden;
         }
 
         .dimensions-container {
-            display: flex;
-            gap: 10px;
-            background-color: #111827;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
+            display: flex; gap: 10px; background-color: #111827; padding: 12px;
+            border-radius: 6px; border: 1px solid var(--border-color);
         }
+        .dimensions-container .form-group { flex: 1; min-width: 0; }
 
-        .dimensions-container .form-group { flex: 1; min-width: 0; } /* min-width: 0 evita desbordamientos en flex */
-
-        /* Botones del panel izquierdo */
+        /* Botones */
         .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-svg {
-            width: 100%;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
+            width: 100%; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: inherit;
         }
 
-        .btn-add {
-            background-color: var(--secondary-color);
-            color: white;
-            padding: 12px;
-            font-size: 0.95rem;
-            font-weight: bold;
-        }
+        .btn-add { background-color: var(--secondary-color); color: white; padding: 12px; font-size: 0.95rem; font-weight: bold; }
         .btn-add:hover { background-color: var(--secondary-hover); }
 
         .btn-auto {
-            background-color: var(--primary-color);
-            color: #000;
-            padding: 15px;
-            font-size: 1.05rem;
-            font-weight: bold;
-            margin-top: 10px;
-            box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
+            background-color: var(--primary-color); color: #000; padding: 15px; font-size: 1.05rem;
+            font-weight: bold; margin-top: 10px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
         }
         .btn-auto:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
 
-        .btn-clear {
-            background-color: transparent;
-            color: var(--danger-color);
-            border: 1px solid var(--danger-color);
-            padding: 10px;
-            font-size: 0.9rem;
-        }
+        .btn-clear { background-color: transparent; color: var(--danger-color); border: 1px solid var(--danger-color); padding: 10px; font-size: 0.9rem; }
         .btn-clear:hover { background-color: rgba(239, 68, 68, 0.1); }
 
-        .btn-exportar-png, .btn-exportar-svg {
-            background-color: #374151;
-            color: white;
-            border: 1px solid #4b5563;
-            padding: 12px;
-            font-size: 0.95rem;
-        }
+        .btn-exportar-png, .btn-exportar-svg { background-color: #374151; color: white; border: 1px solid #4b5563; padding: 12px; font-size: 0.95rem; }
         .btn-exportar-png:hover, .btn-exportar-svg:hover { background-color: #4b5563; }
 
-        /* Contenedor de botones horizontales */
-        .button-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
+        .button-row { display: flex; gap: 10px; margin-top: 10px; }
 
-        /* Lista de Pendientes (Cola de impresión) */
         .queue-container {
-            background-color: #111827;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 10px;
-            max-height: 150px;
-            overflow-y: auto;
+            background-color: #111827; border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 10px; max-height: 150px; overflow-y: auto;
         }
         
         .queue-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #1f2937;
-            padding: 8px 10px;
-            margin-bottom: 5px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            border-left: 3px solid var(--primary-color);
-            word-break: break-all;
+            display: flex; justify-content: space-between; align-items: center; background-color: #1f2937;
+            padding: 8px 10px; margin-bottom: 5px; border-radius: 4px; font-size: 0.85rem;
+            border-left: 3px solid var(--primary-color); word-break: break-all;
         }
 
-        /* Panel de Vista Previa a la derecha */
+        /* Opciones de Configuración Avanzada */
+        .advanced-options {
+            display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.85rem; color: #d1d5db;
+        }
+        .advanced-options input[type="checkbox"] { accent-color: var(--primary-color); cursor: pointer; }
+
+        /* Panel Derecho */
         .preview-panel {
-            background-color: var(--panel-bg);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
+            background-color: var(--panel-bg); padding: 25px; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); flex-grow: 1; display: flex; flex-direction: column; width: 100%;
         }
 
         .canvas-header {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-bottom: 15px;
-            align-items: flex-start;
-            flex-wrap: wrap; /* Permite que el texto baje si no cabe */
-            gap: 10px;
+            display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; align-items: flex-start; flex-wrap: wrap; gap: 10px;
         }
 
         .btn-clear-canvas {
-            background-color: transparent;
-            color: #9ca3af;
-            border: 1px solid #4b5563;
-            padding: 8px 12px;
-            font-size: 0.85rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 8px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
+            background-color: transparent; color: #9ca3af; border: 1px solid #4b5563; padding: 8px 12px;
+            font-size: 0.85rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px;
         }
-        .btn-clear-canvas:hover {
-            background-color: #374151;
-            color: white;
-            border-color: #6b7280;
-        }
+        .btn-clear-canvas:hover { background-color: #374151; color: white; border-color: #6b7280; }
 
         .canvas-header p { margin: 0; color: #9ca3af; font-size: 0.9rem; }
-        .status-message {
-            color: var(--secondary-color);
-            font-weight: bold;
-            font-size: 0.9rem;
-            display: block;
-            margin-top: 5px;
-        }
+        .status-message { color: var(--secondary-color); font-weight: bold; font-size: 0.9rem; display: block; margin-top: 5px; }
 
         .canvas-container {
-            background-image: 
-                linear-gradient(45deg, #1f2937 25%, transparent 25%), 
-                linear-gradient(-45deg, #1f2937 25%, transparent 25%), 
-                linear-gradient(45deg, transparent 75%, #1f2937 75%), 
-                linear-gradient(-45deg, transparent 75%, #1f2937 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-            background-color: #111827; 
-            border: 1px solid #4b5563;
-            display: flex;
-            position: relative;
-            /* Altura adaptativa pero con un máximo para que no se salga de la pantalla */
-            height: 80vh; 
-            max-height: 800px;
-            aspect-ratio: 57 / 112; 
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-            /* Evita acciones predeterminadas del navegador al tocar el lienzo (como el scroll accidental) */
-            touch-action: none; 
+            background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%), linear-gradient(-45deg, #1f2937 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1f2937 75%), linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; background-color: #111827; 
+            border: 1px solid #4b5563; display: flex; position: relative; height: 80vh; max-height: 800px; aspect-ratio: 57 / 112; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); touch-action: none; 
         }
 
-        #svg-workspace {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
+        #svg-workspace { width: 100%; height: 100%; display: block; }
 
-        .draggable-text {
-            cursor: grab;
-            user-select: none;
-            /* Asegura que los dispositivos táctiles entiendan que esto se manipula */
-            touch-action: none; 
-        }
+        .draggable-text { cursor: grab; user-select: none; touch-action: none; }
         .draggable-text:active { cursor: grabbing; }
         .draggable-text:hover { opacity: 0.8; }
 
-        /* ==========================================
-           MEDIA QUERIES (MAGIA RESPONSIVA)
-           ========================================== */
-        
-        /* Tablets (hasta 1024px) */
         @media (max-width: 1024px) {
-            .app-container { 
-                flex-direction: column; /* Apila el panel sobre el lienzo */
-            }
-            .controls-panel { 
-                width: 100%; /* El panel usa todo el ancho */
-            }
-            .canvas-container { 
-                height: auto; 
-                width: 100%; /* El lienzo se expande a lo ancho y ajusta su alto por el aspect-ratio */
-                max-height: 70vh;
-            }
-            .dimensions-container {
-                flex-wrap: wrap; /* Si las cajas no caben, se apilan */
-            }
+            .app-container { flex-direction: column; }
+            .controls-panel { width: 100%; }
+            .canvas-container { height: auto; width: 100%; max-height: 70vh; }
+            .dimensions-container { flex-wrap: wrap; }
         }
 
-        /* Celulares (hasta 600px) */
         @media (max-width: 600px) {
             body { padding: 10px; }
-            .button-row { flex-direction: column; } /* Botones apilados en celulares */
+            .button-row { flex-direction: column; }
             .btn-clear, .btn-exportar-png { width: 100%; }
             .canvas-header { flex-direction: column; align-items: flex-start; text-align: left; }
             .canvas-header div { text-align: left !important; }
@@ -361,8 +212,8 @@
 
             <div class="dimensions-container">
                 <div class="form-group">
-                    <label>Alto (cm):</label>
-                    <input type="number" id="alto-numero-input" value="22" min="1" step="0.5">
+                    <label>Alto Físico (cm):</label>
+                    <input type="number" id="alto-numero-input" value="8" min="1" step="0.5">
                 </div>
                 <div class="form-group">
                     <label>Color:</label>
@@ -380,19 +231,23 @@
                 <div style="color: #6b7280; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>
             </div>
 
-            <h2>3. Generar y Exportar</h2>
-            <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar y Auto-Acomodar</button>
+            <h2>3. Generar Tetris</h2>
+            <div class="advanced-options">
+                <input type="checkbox" id="permitir-rotacion" checked>
+                <label for="permitir-rotacion">Permitir rotar 90° para ahorrar espacio</label>
+            </div>
+            
+            <button class="btn-auto" onclick="autoAcomodar()">⚡ Acomodo Inteligente (Tetris)</button>
             <div class="button-row">
                 <button class="btn-clear" style="flex: 1;" onclick="vaciarCola()">🗑️ Vaciar Cola</button>
                 <button class="btn-exportar-png" style="flex: 2;" onclick="descargarPNG()">💾 Descargar PNG</button>
             </div>
-            <button class="btn-exportar-svg" style="margin-top: 10px;" onclick="descargarSVG()">💾 Mantener Exportación SVG</button>
         </div>
 
         <div class="preview-panel">
             <div class="canvas-header">
                 <div>
-                    <h2 style="margin: 0;">Lienzo Inteligente</h2>
+                    <h2 style="margin: 0;">Lienzo de Producción</h2>
                     <button class="btn-clear-canvas" onclick="limpiarLienzo()">🧹 Limpiar Lienzo</button>
                 </div>
                 <div style="text-align: right;">
@@ -402,17 +257,18 @@
             </div>
             
             <div class="canvas-container" id="canvas-wrapper">
+                <svg id="medidor-oculto" style="visibility: hidden; position: absolute; width: 0; height: 0;"></svg>
+                
                 <svg id="svg-workspace" xmlns="http://www.w3.org/2000/svg">
                     <defs id="svg-defs"></defs>
                     <g id="texto-container"></g>
                 </svg>
             </div>
-            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px; text-align: center;">* Arrastra los elementos (con el ratón o tu dedo) para aprovechar huecos. Doble clic (o doble toque) para borrar uno.</p>
+            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px; text-align: center;">* Arrastra los elementos libremente. Doble clic (o doble toque) para borrar uno.</p>
         </div>
     </div>
 
     <script>
-        // Referencias principales
         const anchoInput = document.getElementById('ancho-input');
         const altoInput = document.getElementById('alto-input');
         const svgWorkspace = document.getElementById('svg-workspace');
@@ -422,9 +278,12 @@
         const medidaInfo = document.getElementById('medida-info');
         const queueList = document.getElementById('queue-list');
         const statusInfo = document.getElementById('status-info');
+        const medidorOculto = document.getElementById('medidor-oculto');
+        const checkRotacion = document.getElementById('permitir-rotacion');
 
         let fuentesPersonalizadas = {};
         let colaProduccion = []; 
+        const PIXELES_POR_CM = 100; // Resolución virtual altísima
 
         // 1. Configuración de pantalla
         function actualizarLienzo() {
@@ -432,12 +291,9 @@
             const altoPlantillaCm = parseFloat(altoInput.value) || 112;
             medidaInfo.textContent = `Plantilla: ${anchoPlantillaCm} cm x ${altoPlantillaCm} cm`;
             
-            // Forzar proporción en CSS
             canvasWrapper.style.aspectRatio = `${anchoPlantillaCm} / ${altoPlantillaCm}`;
-            
-            // Escala interna SVG (100px = 1cm)
-            const viewBoxAncho = anchoPlantillaCm * 100;
-            const viewBoxAlto = altoPlantillaCm * 100;
+            const viewBoxAncho = anchoPlantillaCm * PIXELES_POR_CM;
+            const viewBoxAlto = altoPlantillaCm * PIXELES_POR_CM;
             svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
         }
 
@@ -463,7 +319,6 @@
                 const option = document.createElement('option');
                 option.value = `'${fontName}'`;
                 
-                // Truncar nombre si es muy largo para móvil
                 let displayName = file.name;
                 if(displayName.length > 15) displayName = displayName.substring(0, 15) + '...';
                 
@@ -515,23 +370,30 @@
             });
         }
 
-        function eliminarDeCola(index) {
-            colaProduccion.splice(index, 1);
-            actualizarVistaCola();
-        }
-
-        function vaciarCola() {
-            colaProduccion = [];
-            actualizarVistaCola();
-        }
-
+        function eliminarDeCola(index) { colaProduccion.splice(index, 1); actualizarVistaCola(); }
+        function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
         function limpiarLienzo() {
             textoContainer.innerHTML = '';
             statusInfo.textContent = 'Lienzo en blanco.';
             statusInfo.style.color = '#9ca3af';
         }
 
-        // 4. Motor de Acomodo Automático (Bin Packing)
+        // ==========================================
+        // 4. MOTOR DE ACOMODO INDUSTRIAL (TETRIS)
+        // ==========================================
+        
+        // Función auxiliar para obtener el ancho exacto sin el padding asqueroso del SVG
+        function medirAnchoReal(texto, fuente, tamanoPx) {
+            medidorOculto.innerHTML = '';
+            const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            t.textContent = texto;
+            t.setAttribute('font-family', fuente);
+            t.setAttribute('font-size', `${tamanoPx}px`);
+            medidorOculto.appendChild(t);
+            // Tomamos solo el ancho, la altura la forzaremos nosotros matemáticamente.
+            return t.getBBox().width;
+        }
+
         function autoAcomodar() {
             if (colaProduccion.length === 0) {
                 alert("Añade elementos a la cola primero.");
@@ -540,139 +402,219 @@
 
             limpiarLienzo();
             
-            const anchoLienzoPx = (parseFloat(anchoInput.value) || 57) * 100;
-            const altoLienzoPx = (parseFloat(altoInput.value) || 112) * 100;
-            const margenPx = 50; 
+            const anchoLienzoPx = (parseFloat(anchoInput.value) || 57) * PIXELES_POR_CM;
+            const altoLienzoPx = (parseFloat(altoInput.value) || 112) * PIXELES_POR_CM;
+            
+            // Margen ajustado: Reducido a 0.2cm (20px) para que estén pegados pero sin tocarse
+            const margenPx = 20; 
 
-            let posXActual = margenPx;
-            let posYActual = margenPx;
-            let alturaFilaMaxima = 0;
+            // 1. DESGLOSAR Y ORDENAR (El secreto del Tetris)
+            let piezas = [];
+            colaProduccion.forEach(item => {
+                const altoPx = item.altoCm * PIXELES_POR_CM;
+                const anchoPx = medirAnchoReal(item.texto, item.fuente, altoPx);
+                
+                for (let i = 0; i < item.cantidad; i++) {
+                    piezas.push({
+                        texto: item.texto,
+                        fuente: item.fuente,
+                        color: item.color,
+                        alto: altoPx,
+                        ancho: anchoPx,
+                        area: altoPx * anchoPx
+                    });
+                }
+            });
+
+            // ORDENAMIENTO ESTRICTO: Por Área mayor primero, y luego por altura. 
+            // Esto garantiza que los monstruos grandes se acomoden primero y los chiquitos tapen huecos.
+            piezas.sort((a, b) => b.area - a.area || b.alto - a.alto);
+
+            // 2. SISTEMA DE FILAS INTELIGENTES (Shelf Packing)
+            let filas = [{ y: margenPx, alturaFila: 0, espacioOcupadoX: margenPx }];
             
             let totalAcomodados = 0;
             let elementosNoCupieron = 0;
+            const permitirRotacion = checkRotacion.checked;
 
-            colaProduccion.forEach(item => {
-                const tamanoTextoPx = item.altoCm * 100;
+            piezas.forEach(pieza => {
+                let acomodado = false;
+                let rotado = false;
+                let anchoUsar = pieza.ancho;
+                let altoUsar = pieza.alto;
 
-                for (let i = 0; i < item.cantidad; i++) {
-                    const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                    textoNode.textContent = item.texto;
-                    textoNode.setAttribute('fill', item.color); 
-                    textoNode.setAttribute('font-family', item.fuente);
-                    textoNode.setAttribute('font-size', `${tamanoTextoPx}px`); 
-                    textoNode.setAttribute('dominant-baseline', 'hanging'); 
-                    textoNode.setAttribute('class', 'draggable-text');
+                // Intentar buscar una fila existente donde quepa
+                for (let fila of filas) {
+                    // Prueba Normal
+                    if (fila.espacioOcupadoX + anchoUsar + margenPx <= anchoLienzoPx && fila.alturaFila >= altoUsar) {
+                        dibujarPieza(pieza, fila.espacioOcupadoX, fila.y, false);
+                        fila.espacioOcupadoX += anchoUsar + margenPx;
+                        acomodado = true;
+                        totalAcomodados++;
+                        break;
+                    }
                     
-                    textoContainer.appendChild(textoNode);
-                    
-                    const caja = textoNode.getBBox();
-                    
-                    if (posXActual + caja.width + margenPx > anchoLienzoPx) {
-                        posXActual = margenPx;
-                        posYActual += alturaFilaMaxima + margenPx;
-                        alturaFilaMaxima = 0; 
+                    // Prueba Rotando 90° (Si está activado)
+                    if (permitirRotacion && fila.espacioOcupadoX + altoUsar + margenPx <= anchoLienzoPx && fila.alturaFila >= anchoUsar) {
+                        dibujarPieza(pieza, fila.espacioOcupadoX, fila.y, true);
+                        fila.espacioOcupadoX += altoUsar + margenPx;
+                        acomodado = true;
+                        totalAcomodados++;
+                        break;
+                    }
+                }
+
+                // Si no cupo en filas existentes, crear una nueva fila abajo
+                if (!acomodado) {
+                    // ¿Cuál es el límite inferior de la última fila creada?
+                    let ultimaFila = filas[filas.length - 1];
+                    let nuevaY = ultimaFila.y + ultimaFila.alturaFila + margenPx;
+
+                    // Decidir si entra normal o si conviene rotarlo para que consuma menos altura de material
+                    let crearRotado = false;
+                    if (permitirRotacion && pieza.ancho > pieza.alto) {
+                        // Si la palabra es muy larga, rotarla ahorra espacio hacia los lados
+                        crearRotado = true;
+                        anchoUsar = pieza.alto;
+                        altoUsar = pieza.ancho;
                     }
 
-                    if (posYActual + caja.height > altoLienzoPx) {
-                        elementosNoCupieron++;
-                        textoContainer.removeChild(textoNode); 
-                        continue; 
-                    }
-
-                    textoNode.setAttribute('x', posXActual);
-                    textoNode.setAttribute('y', posYActual);
-
-                    // Evento para borrar (PC y Móvil)
-                    textoNode.addEventListener('dblclick', function() { textoContainer.removeChild(textoNode); });
-                    // Simulación de doble toque para móviles
-                    let lastTouchTime = 0;
-                    textoNode.addEventListener('touchend', function(e) {
-                        let currentTime = new Date().getTime();
-                        let tapLength = currentTime - lastTouchTime;
-                        if (tapLength < 500 && tapLength > 0) {
-                            textoContainer.removeChild(textoNode);
-                            e.preventDefault();
+                    // Verificar si nos salimos del lienzo por completo (se acabó el rollo)
+                    if (nuevaY + altoUsar > altoLienzoPx) {
+                        // Último intento: Si no lo íbamos a rotar, forzamos rotación a ver si milagrosamente cabe
+                        if (permitirRotacion && !crearRotado && nuevaY + pieza.ancho <= altoLienzoPx) {
+                            crearRotado = true;
+                            anchoUsar = pieza.alto;
+                            altoUsar = pieza.ancho;
+                        } else {
+                            elementosNoCupieron++;
+                            return; // Terminamos con esta pieza, no cabe
                         }
-                        lastTouchTime = currentTime;
-                    });
-
-                    posXActual += caja.width + margenPx;
-                    if (caja.height > alturaFilaMaxima) {
-                        alturaFilaMaxima = caja.height;
                     }
-                    
+
+                    // Creamos la nueva fila
+                    filas.push({ y: nuevaY, alturaFila: altoUsar, espacioOcupadoX: margenPx + anchoUsar + margenPx });
+                    dibujarPieza(pieza, margenPx, nuevaY, crearRotado);
                     totalAcomodados++;
                 }
             });
 
             if (elementosNoCupieron > 0) {
-                statusInfo.textContent = `Acomodados: ${totalAcomodados}. NO cupieron: ${elementosNoCupieron}`;
+                statusInfo.textContent = `Acomodados: ${totalAcomodados}. Faltaron: ${elementosNoCupieron}`;
                 statusInfo.style.color = 'var(--danger-color)';
-                alert(`¡Atención! El lienzo se llenó. Se acomodaron ${totalAcomodados} elementos, pero ${elementosNoCupieron} no cupieron.`);
+                alert(`¡Máximo alcanzado! Acomodó ${totalAcomodados} piezas optimizadas. ${elementosNoCupieron} no entraron. Descarga este bloque y genera los faltantes.`);
             } else {
-                statusInfo.textContent = `¡Éxito! ${totalAcomodados} elementos acomodados.`;
+                statusInfo.textContent = `¡Tetris Perfecto! ${totalAcomodados} piezas.`;
                 statusInfo.style.color = 'var(--secondary-color)';
             }
         }
 
-        // 5. Arrastrar y Soltar (Avanzado: Soporte para Ratón y Touch/Dedos)
+        // Función que dibuja en el SVG
+        function dibujarPieza(pieza, x, y, rotar) {
+            const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textoNode.textContent = pieza.texto;
+            textoNode.setAttribute('fill', pieza.color); 
+            textoNode.setAttribute('font-family', pieza.fuente);
+            textoNode.setAttribute('font-size', `${pieza.alto}px`); 
+            
+            // LA MAGIA PARA QUITAR LOS HUECOS: Alinear estrictamente a la coordenada Y superior visual
+            textoNode.setAttribute('dominant-baseline', 'text-before-edge'); 
+            textoNode.setAttribute('class', 'draggable-text');
+
+            if (rotar) {
+                // Matemáticas de rotación: Desplazar, rotar sobre el propio eje.
+                // Como el punto de anclaje es arriba-izquierda, al rotar -90, se sale de la caja.
+                // Necesitamos empujarlo hacia abajo la distancia de su ancho original.
+                textoNode.setAttribute('transform', `translate(${x}, ${y + pieza.ancho}) rotate(-90)`);
+                // Guardamos data interna para que el drag & drop sepa que está rotado
+                textoNode.setAttribute('data-rotated', 'true');
+            } else {
+                textoNode.setAttribute('x', x);
+                textoNode.setAttribute('y', y);
+            }
+
+            // Eliminar al doble clic (o doble toque)
+            textoNode.addEventListener('dblclick', function() { textoContainer.removeChild(textoNode); });
+            let lastTouchTime = 0;
+            textoNode.addEventListener('touchend', function(e) {
+                let tapLength = new Date().getTime() - lastTouchTime;
+                if (tapLength < 500 && tapLength > 0) { textoContainer.removeChild(textoNode); e.preventDefault(); }
+                lastTouchTime = new Date().getTime();
+            });
+
+            textoContainer.appendChild(textoNode);
+        }
+
+        // ==========================================
+        // 5. ARRASTRAR Y SOLTAR (Soporte Universal)
+        // ==========================================
         let elementoSeleccionado = null;
         let offset = { x: 0, y: 0 };
+        let esRotado = false;
 
-        // Unificamos la forma de leer las coordenadas, ya sea de un ratón o de un dedo
         function obtenerPosicionEvent(evt) {
-            let clientX, clientY;
-            if (evt.touches && evt.touches.length > 0) {
-                clientX = evt.touches[0].clientX;
-                clientY = evt.touches[0].clientY;
-            } else {
-                clientX = evt.clientX;
-                clientY = evt.clientY;
-            }
-            
+            let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            let cy = evt.touches ? evt.touches[0].clientY : evt.clientY;
             let CTM = svgWorkspace.getScreenCTM();
-            return { x: (clientX - CTM.e) / CTM.a, y: (clientY - CTM.f) / CTM.d };
+            return { x: (cx - CTM.e) / CTM.a, y: (cy - CTM.f) / CTM.d };
         }
 
         function iniciarArrastre(evt) {
             if (evt.target.classList.contains('draggable-text')) {
                 elementoSeleccionado = evt.target;
-                let eventPos = obtenerPosicionEvent(evt);
-                offset.x = eventPos.x - parseFloat(elementoSeleccionado.getAttributeNS(null, "x"));
-                offset.y = eventPos.y - parseFloat(elementoSeleccionado.getAttributeNS(null, "y"));
+                esRotado = elementoSeleccionado.getAttribute('data-rotated') === 'true';
+                let pos = obtenerPosicionEvent(evt);
+                
+                if (esRotado) {
+                    // Extraer los valores del "translate(X, Y)"
+                    let transformStr = elementoSeleccionado.getAttribute('transform');
+                    let regex = /translate\(([\d.-]+),\s*([\d.-]+)\)/;
+                    let match = regex.exec(transformStr);
+                    if(match) {
+                        offset.x = pos.x - parseFloat(match[1]);
+                        offset.y = pos.y - parseFloat(match[2]);
+                    }
+                } else {
+                    offset.x = pos.x - parseFloat(elementoSeleccionado.getAttribute("x"));
+                    offset.y = pos.y - parseFloat(elementoSeleccionado.getAttribute("y"));
+                }
             }
         }
 
         function duranteArrastre(evt) {
             if (elementoSeleccionado) {
-                evt.preventDefault(); // Evita que la pantalla del celular se mueva mientras arrastras
-                let eventPos = obtenerPosicionEvent(evt);
-                elementoSeleccionado.setAttributeNS(null, "x", eventPos.x - offset.x);
-                elementoSeleccionado.setAttributeNS(null, "y", eventPos.y - offset.y);
+                evt.preventDefault();
+                let pos = obtenerPosicionEvent(evt);
+                let newX = pos.x - offset.x;
+                let newY = pos.y - offset.y;
+
+                if (esRotado) {
+                    elementoSeleccionado.setAttribute("transform", `translate(${newX}, ${newY}) rotate(-90)`);
+                } else {
+                    elementoSeleccionado.setAttribute("x", newX);
+                    elementoSeleccionado.setAttribute("y", newY);
+                }
             }
         }
 
-        function terminarArrastre() {
-            elementoSeleccionado = null;
-        }
+        function terminarArrastre() { elementoSeleccionado = null; }
 
-        // Eventos para Mouse (Computadora)
         svgWorkspace.addEventListener('mousedown', iniciarArrastre);
         svgWorkspace.addEventListener('mousemove', duranteArrastre);
         svgWorkspace.addEventListener('mouseup', terminarArrastre);
         svgWorkspace.addEventListener('mouseleave', terminarArrastre);
-
-        // Eventos para Touch (Celulares y Tablets)
         svgWorkspace.addEventListener('touchstart', iniciarArrastre, {passive: false});
         svgWorkspace.addEventListener('touchmove', duranteArrastre, {passive: false});
         svgWorkspace.addEventListener('touchend', terminarArrastre);
         svgWorkspace.addEventListener('touchcancel', terminarArrastre);
 
-        // 6. Exportaciones
+        // ==========================================
+        // 6. EXPORTACIONES (Alta Definición)
+        // ==========================================
         function descargarPNG() {
             const anchoCm = parseFloat(anchoInput.value) || 57;
             const altoCm = parseFloat(altoInput.value) || 112;
-            const dpi = 59.055; 
+            const dpi = 59.055; // 150 DPI
             const canvas = document.createElement("canvas");
             canvas.width = Math.round(anchoCm * dpi);
             canvas.height = Math.round(altoCm * dpi);
@@ -686,25 +628,12 @@
             img.onload = function() {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const link = document.createElement("a");
-                link.download = `Corte_Automatico.png`;
+                link.download = `Corte_Tetris.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
                 URL.revokeObjectURL(url);
             };
             img.src = url;
-        }
-
-        function descargarSVG() {
-            const svgData = new XMLSerializer().serializeToString(svgWorkspace);
-            const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.download = `Corte_Automatico.svg`;
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
         }
 
         window.onload = actualizarLienzo;
