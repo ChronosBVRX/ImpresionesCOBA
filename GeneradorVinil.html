@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gang Sheet Studio - Sistema Dual Cloud</title>
+    <title>Gang Sheet Studio - IA OCR & Silueteado Quirúrgico</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.3/svg2pdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <script>
         let cvReady = false;
@@ -43,11 +45,7 @@
 
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
         
-        /* Barra de Navegación Principal */
-        .top-navbar {
-            background-color: var(--topbar-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100;
-        }
+        .top-navbar { background-color: var(--topbar-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100; }
         .top-navbar h1 { margin: 0; font-size: 1.5rem; color: white; display: flex; align-items: center; gap: 10px; }
         .nav-buttons { display: flex; gap: 10px; }
         .nav-btn { background-color: transparent; border: 2px solid var(--border-color); color: #94a3b8; padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
@@ -59,38 +57,40 @@
 
         .app-container { display: flex; gap: 20px; max-width: 1700px; width: 100%; height: fit-content; }
 
-        /* Paneles */
         .controls-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); width: 450px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; }
         .controls-panel h2 { margin-top: 0; margin-bottom: 5px; color: #ffffff; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-size: 1.2rem; }
         .preview-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); flex-grow: 1; display: flex; flex-direction: column; width: 100%; }
 
-        /* Controles de Formulario */
         .form-group { display: flex; flex-direction: column; gap: 5px; }
         .form-group label { font-weight: 600; font-size: 0.85rem; color: #94a3b8; }
         .form-group input[type="text"], .form-group input[type="number"], .form-group select { padding: 10px; background-color: #0f172a; color: white; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; width: 100%; text-transform: uppercase; }
         .form-group input[type="file"] { padding: 8px; background-color: #0f172a; border: 1px dashed var(--primary-color); border-radius: 6px; font-size: 0.85rem; color: white; cursor: pointer; width: 100%; }
         .form-group input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--highlight); }
-        
         .dimensions-container { display: flex; gap: 10px; background-color: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         .dimensions-container .form-group { flex: 1; min-width: 0; }
 
-        /* Pestañas Secundarias */
         .type-selector { display: flex; background-color: #0f172a; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px; flex-wrap: wrap; }
         .type-btn { flex: 1; min-width: 30%; padding: 10px 5px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none; transition: 0.3s; border-bottom: 1px solid var(--border-color); }
         .type-btn.active { background-color: var(--highlight); color: white; border-bottom: none; }
         .hidden-panel { display: none !important; }
 
-        /* MODO 1: Galería Extensa del Abecedario */
+        /* MODO 1: Galería y OCR */
         .pdf-gallery-master { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; max-height: 70vh; overflow-y: auto; background-color: #0f172a; padding: 20px; border: 2px dashed var(--border-color); border-radius: 8px; flex-grow: 1; }
         .gallery-item { position: relative; background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: transform 0.2s; }
         .gallery-item:hover { transform: scale(1.05); border-color: var(--primary-color); z-index: 5; }
         .gallery-item img { max-height: 80px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; padding: 5px; }
-        .char-mapper { width: 100% !important; text-align: center; font-weight: bold; font-size: 1.2rem !important; color: var(--primary-color) !important; border-color: var(--highlight) !important; }
         
+        /* Cajas de texto coloreadas por la IA */
+        .char-mapper { width: 100% !important; text-align: center; font-weight: bold; font-size: 1.3rem !important; border: 2px solid var(--border-color) !important; color: white !important; transition: 0.3s; }
+        .char-mapper.ocr-success { border-color: var(--secondary-color) !important; background-color: rgba(16, 185, 129, 0.1) !important; }
+        .char-mapper.ocr-doubt { border-color: var(--danger-color) !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+        .char-mapper.ocr-loading { border-color: var(--highlight) !important; background-color: rgba(59, 130, 246, 0.1) !important; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
         .btn-delete-piece { position: absolute; top: -8px; right: -8px; background-color: var(--danger-color); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .btn-delete-piece:hover { background-color: #b91c1c; transform: scale(1.1); }
 
-        /* Botones Generales */
         .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-scan, .btn-save-abc { width: 100%; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: inherit; font-weight: bold; }
         .btn-add { background-color: var(--secondary-color); color: white; padding: 12px; font-size: 0.95rem; }
         .btn-scan { background-color: var(--highlight); color: white; padding: 15px; font-size: 1.05rem; margin-top: 10px; }
@@ -109,7 +109,6 @@
         .advanced-options { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.85rem; color: #cbd5e1; }
         .advanced-options input[type="checkbox"] { accent-color: var(--primary-color); cursor: pointer; }
 
-        /* Lienzo de Producción */
         .canvas-header { display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
         .btn-clear-canvas { background-color: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
         .btn-clear-canvas:hover { background-color: #334155; color: white; border-color: #94a3b8; }
@@ -125,6 +124,7 @@
 
         #loader, #cv-loader { display: none; color: #f59e0b; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
         #cv-status { color: #ef4444; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
+        .espaciado-letras { font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
         .btn-delete-font { background-color: transparent; color: var(--danger-color); border: none; font-size: 0.8rem; cursor: pointer; text-decoration: underline; margin-top: 5px; display: block; text-align: right; }
 
         @media (max-width: 1024px) { .app-container { flex-direction: column; } .controls-panel { width: 100%; } .canvas-container { height: auto; width: 100%; max-height: 70vh; } }
@@ -135,7 +135,7 @@
     <div class="top-navbar">
         <h1>✂️ GANG SHEET STUDIO</h1>
         <div class="nav-buttons">
-            <button class="nav-btn active" id="nav-btn-extractor" onclick="switchEnvironment('extractor')">☁️ Módulo 1: Laboratorio de Fuentes (PDF)</button>
+            <button class="nav-btn active" id="nav-btn-extractor" onclick="switchEnvironment('extractor')">☁️ Módulo 1: Laboratorio IA (PDF)</button>
             <button class="nav-btn" id="nav-btn-produccion" onclick="switchEnvironment('produccion')">🏭 Módulo 2: Producción de Vinil</button>
         </div>
     </div>
@@ -143,13 +143,13 @@
     <div id="env-extractor" class="env-wrapper active-env">
         <div class="app-container">
             <div class="controls-panel" style="width: 400px;">
-                <h2>Laboratorio de Tipografías</h2>
-                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Extrae imágenes de un PDF y guárdalas como una fuente reutilizable en Supabase.</p>
+                <h2>Laboratorio de Inteligencia Artificial</h2>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Escanea el PDF. La IA hará cortes quirúrgicos y leerá las letras automáticamente.</p>
                 
-                <div id="cv-status">Inicializando Motor OpenCV... ⏳</div>
+                <div id="cv-status">Inicializando Cerebro de Visión... ⏳</div>
                 
                 <div class="form-group" style="margin-top: 10px;">
-                    <label style="color: var(--primary-color);">1. Nombre de la nueva tipografía:</label>
+                    <label style="color: var(--primary-color);">1. Nombre para tu nueva tipografía:</label>
                     <input type="text" id="font-custom-name" placeholder="Ej. AL NASSR LOCAL 2025" style="border-color: var(--primary-color);">
                 </div>
 
@@ -157,25 +157,25 @@
                     <label>2. Sube el PDF con los diseños:</label>
                     <input type="file" id="pdf-ai-upload" accept="application/pdf">
 
-                    <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">🔍 Escanear Piezas del PDF</button>
-                    <div id="cv-loader">Analizando trazos precisos y limpiando fondos... 🚀</div>
+                    <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">🔍 Escanear e Identificar (IA)</button>
+                    <div id="cv-loader">Haciendo silueteado quirúrgico y leyendo caracteres... 🚀</div>
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
-                    <label>3. Revisa la galería y guarda en la nube:</label>
+                    <label>3. Confirma la lectura de la IA y guarda:</label>
                     <button id="btn-save-abc" class="btn-save-abc" onclick="guardarAbecedarioSupabase()">☁️ Subir a Supabase</button>
-                    <p style="font-size: 0.8rem; color: #64748b; text-align: center;">Nota: Usa el ícono "🗑️" en la galería para borrar basura (puntos, rayas) que no quieras guardar.</p>
+                    <p style="font-size: 0.8rem; color: #64748b; text-align: center;">Nota: Verifica los cuadros en rojo (La IA tuvo dudas). Borra los puntos o basura con la papelera 🗑️.</p>
                 </div>
             </div>
 
             <div class="preview-panel">
                 <div class="canvas-header">
-                    <h2 style="margin: 0;">Galería de Piezas Extraídas</h2>
-                    <p>Asigna la letra/número debajo de cada imagen útil.</p>
+                    <h2 style="margin: 0;">Resultados del Escáner OCR</h2>
+                    <p>Las letras verdes fueron leídas exitosamente. Corrige las rojas si es necesario.</p>
                 </div>
                 <div class="pdf-gallery-master" id="pdf-gallery-master">
                     <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">
-                        Sube un PDF y presiona "Escanear" para ver los resultados aquí.
+                        Sube un PDF y presiona "Escanear" para que la IA haga su trabajo.
                     </div>
                 </div>
                 <canvas id="internal-pdf-canvas" style="display:none;"></canvas>
@@ -193,7 +193,6 @@
                 </div>
 
                 <h2>2. Preparar Elementos</h2>
-                
                 <div class="type-selector">
                     <button class="type-btn active" id="btn-tab-constructor" onclick="cambiarTabProd('constructor')">🔤 Base de Datos</button>
                     <button class="type-btn" id="btn-tab-texto" onclick="cambiarTabProd('texto')">PC Normal</button>
@@ -206,10 +205,10 @@
                         <select id="db-font-selector">
                             <option value="">Cargando desde la nube... ☁️</option>
                         </select>
-                        <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente seleccionada de la nube</button>
+                        <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente de la nube</button>
                     </div>
                     <div class="form-group">
-                        <label style="color: var(--highlight);">Escribe la palabra (Usa tu abecedario):</label>
+                        <label style="color: var(--highlight);">Escribe la palabra:</label>
                         <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
                     </div>
                     <div class="espaciado-letras">
@@ -224,7 +223,7 @@
                 </div>
 
                 <div id="panel-texto" class="form-group hidden-panel" style="gap: 15px;">
-                    <div class="form-group"><label>Texto (Número o Nombre):</label><input type="text" id="texto-input" value="10"></div>
+                    <div class="form-group"><label>Texto:</label><input type="text" id="texto-input" value="10"></div>
                     <div class="form-group"><label style="color: var(--primary-color);">Cargar Fuente (.ttf/.otf):</label><input type="file" id="font-upload" accept=".ttf, .otf, .woff"></div>
                     <div class="form-group"><label>Color:</label><input type="color" id="color-input" value="#ffffff"></div>
                     <div class="dimensions-container">
@@ -235,7 +234,7 @@
                 </div>
 
                 <div id="panel-imagen" class="form-group hidden-panel" style="gap: 15px;">
-                    <div class="form-group"><label style="color: var(--primary-color);">Sube un diseño suelto (PNG):</label><input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml"></div>
+                    <div class="form-group"><label style="color: var(--primary-color);">Sube un PNG suelto:</label><input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml"></div>
                     <div class="dimensions-container" style="margin-top: 10px;">
                         <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-img" value="22" min="1" step="0.5"></div>
                         <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-img" value="1" min="1"></div>
@@ -311,14 +310,9 @@
                 if (error) throw error;
                 
                 baseDatosGlobal = {};
-                if (data && data.length > 0) {
-                    data.forEach(fila => { baseDatosGlobal[fila.nombre] = fila.data; });
-                }
+                if (data && data.length > 0) { data.forEach(fila => { baseDatosGlobal[fila.nombre] = fila.data; }); }
                 actualizarSelectorFuentes();
-            } catch (err) {
-                console.error("Error Supabase:", err.message);
-                selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube. (Revisa SQL)</option>';
-            }
+            } catch (err) { console.error("Error Supabase:", err.message); }
         }
 
         function actualizarSelectorFuentes() {
@@ -338,15 +332,13 @@
                 try {
                     const { error } = await supabaseClient.from('abecedarios').delete().eq('nombre', nombre);
                     if (error) throw error;
-                    delete baseDatosGlobal[nombre];
-                    actualizarSelectorFuentes();
-                    alert("Fuente eliminada de la nube con éxito.");
-                } catch(err) { alert("Error al eliminar de Supabase: " + err.message); }
+                    delete baseDatosGlobal[nombre]; actualizarSelectorFuentes();
+                } catch(err) { alert("Error al eliminar: " + err.message); }
             }
         }
 
         // ==========================================
-        // ENTORNO 1: EXTRACTOR DE PDF Y VISIÓN ARTIFICIAL (CORREGIDO SIN FUSIÓN)
+        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA EXACTA
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
@@ -369,29 +361,24 @@
                 const ctx = canvas.getContext('2d');
                 canvas.width = viewport.width; canvas.height = viewport.height;
                 
-                // Forzar fondo blanco
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                extraerContornosConOpenCV(canvas);
+                extraerMascaraExacta(canvas);
             };
             reader.readAsArrayBuffer(pdfFileGlobal);
         }
 
-        function extraerContornosConOpenCV(canvas) {
-            let src, gray, thresh, contours, hierarchy;
+        async function extraerMascaraExacta(canvas) {
+            let src, gray, thresh, contours, hierarchy, mask;
             
             try {
                 src = cv.imread(canvas); 
                 gray = new cv.Mat(); 
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
-                // Invertir imagen y usar OTSU
                 thresh = new cv.Mat(); 
                 cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
                 
-                // YA NO HAY DILATACIÓN AQUÍ. Búsqueda de contornos directa sobre cada pedacito de tinta.
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
                 cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
@@ -400,26 +387,41 @@
                 const gallery = document.getElementById('pdf-gallery-master'); gallery.innerHTML = '';
                 let piezacount = 0;
                 
+                // Crear máscara en blanco
+                mask = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
+
                 for (let i = 0; i < contours.size(); ++i) {
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
                     
-                    // Umbral bajado a 100 para capturar acentos, puntos y comas.
-                    if (area > 100) {
+                    // Solo escaneamos piezas decentes, no polvo microscópico
+                    if (area > 80) {
                         let rect = cv.boundingRect(cnt);
+                        
+                        // MAGIA QUIRÚRGICA: Dibujar SOLO la silueta actual en la máscara
+                        mask.setTo(new cv.Scalar(0)); 
+                        cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
                         
                         let tCanvas = document.createElement('canvas'); 
                         tCanvas.width = rect.width; tCanvas.height = rect.height;
                         let tCtx = tCanvas.getContext('2d');
                         tCtx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
                         
-                        // Borrado de fondo blanco
                         let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
                         let data = imgData.data;
+                        
+                        let maskRoi = mask.roi(rect);
+                        let maskData = maskRoi.data;
+
+                        // Recorrer cada pixel: Si está FUERA de la silueta curva, o si es FONDO BLANCO, eliminarlo.
                         for (let j = 0; j < data.length; j += 4) { 
-                            if (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200) { data[j+3] = 0; } 
+                            let maskPixel = maskData[j / 4];
+                            if (maskPixel === 0 || (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200)) { 
+                                data[j+3] = 0; // Transparencia absoluta
+                            } 
                         }
                         tCtx.putImageData(imgData, 0, 0);
+                        maskRoi.delete();
 
                         const base64 = tCanvas.toDataURL('image/png'); 
                         const idPieza = `pieza_${piezacount}`;
@@ -429,31 +431,60 @@
                             <div class="gallery-item" id="card_${idPieza}">
                                 <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')" title="Descartar imagen">🗑️</button>
                                 <img src="${base64}">
-                                <input type="text" class="char-mapper" id="map_${idPieza}" maxlength="1" placeholder="?">
+                                <input type="text" class="char-mapper ocr-loading" id="map_${idPieza}" maxlength="1" placeholder="IA...">
                             </div>
                         `);
+
+                        // ENVIAR AL MOTOR TESSERACT (IA OCR) PARA QUE LEA LA LETRA
+                        ejecutarOCR(base64, idPieza);
+
                         piezacount++;
                     }
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
-                
-                if (piezacount === 0) {
-                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron piezas útiles. Intenta con un PDF diferente.</div>';
-                }
+                if (piezacount === 0) gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron letras.</div>';
 
             } catch (err) { 
-                let msg = typeof err === 'number' ? cv.exceptionFromPtr(err).msg : err;
-                alert("Error C++ en OpenCV: " + msg + "\nIntenta recargar la página si el problema persiste."); 
+                alert("Error Visual: " + err); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
-                // LIMPIEZA ABSOLUTA
-                if(src) src.delete(); 
-                if(gray) gray.delete(); 
-                if(thresh) thresh.delete(); 
-                if(contours) contours.delete(); 
-                if(hierarchy) hierarchy.delete();
+                if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
+                if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
             }
+        }
+
+        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR (TESSERACT)
+        function ejecutarOCR(base64Image, idPieza) {
+            Tesseract.recognize(
+                base64Image,
+                'eng',
+                { tessjs_create_pdf: '0', tessjs_create_hocr: '0' }
+            ).then(({ data: { text, confidence } }) => {
+                let inputElement = document.getElementById(`map_${idPieza}`);
+                if(!inputElement) return; // Si el usuario la borró antes de que terminara
+                
+                // Limpiar texto de basura
+                let cleanText = text.replace(/[^A-Za-z0-9ÁÉÍÓÚÑ.,-]/g, '').trim();
+                
+                inputElement.classList.remove('ocr-loading');
+                
+                if (confidence > 65 && cleanText.length > 0) {
+                    // La IA está segura
+                    inputElement.value = cleanText[0];
+                    inputElement.classList.add('ocr-success');
+                } else {
+                    // La IA tiene dudas o es un símbolo especial
+                    inputElement.placeholder = "?";
+                    inputElement.classList.add('ocr-doubt');
+                }
+            }).catch(err => {
+                let inputElement = document.getElementById(`map_${idPieza}`);
+                if(inputElement) {
+                    inputElement.classList.remove('ocr-loading');
+                    inputElement.classList.add('ocr-doubt');
+                }
+            });
         }
 
         function eliminarPiezaGaleria(idPieza) {
@@ -463,10 +494,9 @@
 
         async function guardarAbecedarioSupabase() {
             let nombreFuente = document.getElementById('font-custom-name').value.trim();
-            if (!nombreFuente) { alert("Por favor, ponle un nombre a tu tipografía en la caja de texto arriba."); return; }
+            if (!nombreFuente) { alert("Nombre obligatorio para guardar en la Nube."); return; }
 
-            let abcNuevo = {};
-            let guardadas = 0;
+            let abcNuevo = {}; let guardadas = 0;
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
                 if (char) { abcNuevo[char] = { src: pieza.src, propor: pieza.propor }; guardadas++; }
@@ -481,14 +511,11 @@
                     if (error) throw error;
 
                     baseDatosGlobal[nombreFuente] = abcNuevo;
-                    alert(`¡Éxito! Tipografía "${nombreFuente}" guardada en la Nube con ${guardadas} caracteres.`);
-                    actualizarSelectorFuentes();
-                    selectorFuentesDB.value = nombreFuente;
+                    actualizarSelectorFuentes(); selectorFuentesDB.value = nombreFuente;
                     
                     document.getElementById('font-custom-name').value = "";
                     document.getElementById('pdf-gallery-master').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">Sube otro PDF para crear más fuentes.</div>';
-                    switchEnvironment('produccion');
-                    cambiarTabProd('constructor');
+                    switchEnvironment('produccion'); cambiarTabProd('constructor');
 
                 } catch(e) { alert("Error al subir a Supabase: " + e.message); } 
                 finally { btnSave.textContent = "☁️ Subir a Supabase"; btnSave.disabled = false; }
@@ -507,20 +534,14 @@
         const statusInfo = document.getElementById('status-info');
         const checkRotacion = document.getElementById('permitir-rotacion');
         
-        let fuenteActual = null;
-        let imagenUnicaBase64 = null;
-        let proporImagenUnica = 1;
-        let nombreImgSuela = "";
+        let imagenUnicaBase64 = null; let proporImagenUnica = 1; let nombreImgSuela = "";
         let colaProduccion = []; 
         const PIXELES_POR_CM = 100;
-
-        opentype.load('https://cdn.jsdelivr.net/npm/@fontsource/anton/files/anton-latin-400-normal.woff', function(err, font) { if (!err) fuenteActual = font; });
 
         function cambiarTabProd(modo) {
             document.querySelectorAll('#env-produccion .type-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('#env-produccion [id^="panel-"]').forEach(p => p.classList.add('hidden-panel'));
-            document.getElementById(`btn-tab-${modo}`).classList.add('active');
-            document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
+            document.getElementById(`btn-tab-${modo}`).classList.add('active'); document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
         }
 
         function actualizarLienzo() {
@@ -541,16 +562,14 @@
             const espaciadoPx = parseInt(document.getElementById('letter-spacing').value) * (altoCm/10); 
 
             if (!palabra) return;
-
-            const altoPx = altoCm * PIXELES_POR_CM;
-            let currentX = 0; let caracteresArmados = [];
+            const altoPx = altoCm * PIXELES_POR_CM; let currentX = 0; let caracteresArmados = [];
 
             for (let i = 0; i < palabra.length; i++) {
                 let char = palabra[i];
                 if (char === ' ') { currentX += (altoPx * 0.3); continue; }
                 let dataLetra = abcAUsar[char];
-                if (!dataLetra) { alert(`La letra "${char}" no existe en la nube para "${nombreFuenteSelect}". Se omitirá.`); continue; }
-
+                if (!dataLetra) continue;
+                
                 let anchoLetraPx = altoPx * dataLetra.propor;
                 caracteresArmados.push({ char: char, src: dataLetra.src, x: currentX, w: anchoLetraPx, h: altoPx });
                 currentX += anchoLetraPx + espaciadoPx;
@@ -561,10 +580,10 @@
                 tipo: 'palabra_armada', nombreMostrar: `[${nombreFuenteSelect}] "${palabra}"`,
                 letras: caracteresArmados, ancho: currentX - espaciadoPx, alto: altoPx, 
                 offsetX: 0, offsetY: 0, area: (currentX - espaciadoPx) * altoPx, cantidad: cantidad
-            });
-            actualizarVistaCola();
+            }); actualizarVistaCola();
         }
 
+        // TEXTO / PNG
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if(!file)return; const reader = new FileReader();
             reader.onload = function(ev) { try{ fuenteActual = opentype.parse(ev.target.result); }catch(e){} }; reader.readAsArrayBuffer(file);
@@ -601,14 +620,13 @@
         function actualizarVistaCola() {
             if (colaProduccion.length === 0) { queueList.innerHTML = '<div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>'; return; }
             queueList.innerHTML = '';
-            colaProduccion.forEach((item, index) => {
-                queueList.insertAdjacentHTML('beforeend', `<div class="queue-item"><span><b>${item.cantidad}x</b> ${item.nombreMostrar} (${(item.ancho/PIXELES_POR_CM).toFixed(1)}x${(item.alto/PIXELES_POR_CM).toFixed(1)}cm)</span><button style="background:none; border:none; color:#ef4444; cursor:pointer; padding:5px;" onclick="eliminarDeCola(${index})">✕</button></div>`);
-            });
+            colaProduccion.forEach((item, index) => { queueList.insertAdjacentHTML('beforeend', `<div class="queue-item"><span><b>${item.cantidad}x</b> ${item.nombreMostrar} (${(item.ancho/PIXELES_POR_CM).toFixed(1)}x${(item.alto/PIXELES_POR_CM).toFixed(1)}cm)</span><button style="background:none; border:none; color:#ef4444; cursor:pointer; padding:5px;" onclick="eliminarDeCola(${index})">✕</button></div>`); });
         }
         function eliminarDeCola(index) { colaProduccion.splice(index, 1); actualizarVistaCola(); }
         function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
         function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
+        // TETRIS Y RENDERIZADO
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
             pack(w, h, rotatable) {
@@ -639,8 +657,7 @@
             const packer = new GuillotinePacker((parseFloat(anchoInput.value)||57)*PIXELES_POR_CM, (parseFloat(altoInput.value)||112)*PIXELES_POR_CM);
             const permitirRotacion = checkRotacion.checked;
 
-            let piezas = [];
-            colaProduccion.forEach(item => { for (let i = 0; i < item.cantidad; i++) piezas.push({...item}); });
+            let piezas = []; colaProduccion.forEach(item => { for (let i = 0; i < item.cantidad; i++) piezas.push({...item}); });
             piezas.sort((a, b) => b.area - a.area || b.alto - a.alto);
 
             let totalAcomodados = 0, elementosNoCupieron = 0;
@@ -689,15 +706,13 @@
             });
         }
 
-        // DRAG AND DROP
         let elementoSeleccionado = null; let offset = { x: 0, y: 0 };
         function obtenerPosicionEvent(evt) { let cx = evt.touches ? evt.touches[0].clientX : evt.clientX; let cy = evt.touches ? evt.touches[0].clientY : evt.clientY; let CTM = svgWorkspace.getScreenCTM(); return { x: (cx - CTM.e) / CTM.a, y: (cy - CTM.f) / CTM.d }; }
         svgWorkspace.addEventListener('mousedown', (e) => { let target = e.target; while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') target = target.parentNode; if (target && target.classList?.contains('draggable-piece')) { elementoSeleccionado = target; let pos = obtenerPosicionEvent(e); offset.x = pos.x - parseFloat(target.getAttribute('data-x')); offset.y = pos.y - parseFloat(target.getAttribute('data-y')); } });
         svgWorkspace.addEventListener('mousemove', (e) => { if (elementoSeleccionado) { e.preventDefault(); let pos = obtenerPosicionEvent(e); let newX = pos.x - offset.x, newY = pos.y - offset.y; elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`); elementoSeleccionado.setAttribute('data-x', newX); elementoSeleccionado.setAttribute('data-y', newY); } });
         svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; }); svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
-        svgWorkspace.addEventListener('touchstart', (e) => { /* Activa en JS */ }, {passive: false});
+        svgWorkspace.addEventListener('touchstart', (e) => { }, {passive: false});
 
-        // EXPORTACIONES
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
         function descargarPDF() { document.getElementById('loader').style.display = 'block'; setTimeout(async () => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: anchoCm > altoCm ? 'landscape' : 'portrait', unit: 'cm', format: [anchoCm, altoCm] }); await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm }); pdf.save(`GangSheet_Produccion.pdf`); document.getElementById('loader').style.display = 'none'; }, 50); }
         
