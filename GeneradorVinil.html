@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creador de Plantillas (Gang Sheets)</title>
+    <title>Generador Automático de Gang Sheets</title>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
         /* Diseño Visual e Intuitivo (CSS Completo) */
         :root {
-            --primary-color: #f59e0b; /* Color dorado/naranja vibrante */
+            --primary-color: #f59e0b; /* Dorado/Naranja */
             --primary-hover: #d97706;
-            --secondary-color: #3b82f6; /* Azul brillante */
-            --secondary-hover: #2563eb;
-            --danger-color: #ef4444; /* Rojo para borrar */
-            --bg-color: #111827; /* Fondo oscuro estilo las imágenes que mandaste */
+            --secondary-color: #10b981; /* Verde Éxito */
+            --secondary-hover: #059669;
+            --danger-color: #ef4444; 
+            --bg-color: #111827;
             --panel-bg: #1f2937;
             --text-color: #f3f4f6;
             --border-color: #374151;
@@ -44,7 +44,7 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 380px;
+            width: 400px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -57,6 +57,7 @@
             color: #ffffff;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
+            font-size: 1.2rem;
         }
 
         .form-group {
@@ -67,25 +68,24 @@
 
         .form-group label {
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #9ca3af;
         }
 
         .form-group input[type="text"], 
         .form-group input[type="number"], 
         .form-group select {
-            padding: 10px;
+            padding: 8px 10px;
             background-color: #374151;
             color: white;
             border: 1px solid var(--border-color);
             border-radius: 6px;
             font-size: 1rem;
-            transition: border-color 0.3s;
         }
 
         .form-group input[type="color"] {
             width: 100%;
-            height: 40px;
+            height: 35px;
             padding: 2px;
             background-color: #374151;
             border: 1px solid var(--border-color);
@@ -94,11 +94,11 @@
         }
 
         .form-group input[type="file"] {
-            padding: 10px;
+            padding: 8px;
             background-color: #374151;
             border: 1px dashed var(--primary-color);
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: white;
             cursor: pointer;
         }
@@ -112,53 +112,80 @@
             border: 1px solid var(--border-color);
         }
 
-        .dimensions-container .form-group {
-            flex: 1;
-        }
+        .dimensions-container .form-group { flex: 1; }
 
         /* Botones */
         .btn-add {
             background-color: var(--secondary-color);
             color: white;
             border: none;
-            padding: 12px;
-            font-size: 1rem;
+            padding: 10px;
+            font-size: 0.95rem;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: 5px;
-            margin-bottom: 15px;
         }
         .btn-add:hover { background-color: var(--secondary-hover); }
 
-        .btn-exportar-png {
+        .btn-auto {
             background-color: var(--primary-color);
             color: #000;
             border: none;
-            padding: 15px;
-            font-size: 1.1rem;
+            padding: 12px;
+            font-size: 1.05rem;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            margin-top: 10px;
+            box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
         }
-        .btn-exportar-png:hover { background-color: var(--primary-hover); }
+        .btn-auto:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
 
-        .btn-exportar-svg {
+        .btn-clear {
             background-color: transparent;
-            color: var(--text-color);
-            border: 1px solid var(--text-color);
-            padding: 10px;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            padding: 8px;
             font-size: 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-exportar-png, .btn-exportar-svg {
+            background-color: #374151;
+            color: white;
+            border: 1px solid #4b5563;
+            padding: 12px;
+            font-size: 0.95rem;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .btn-exportar-svg:hover { background-color: rgba(255,255,255,0.1); }
+        .btn-exportar-png:hover, .btn-exportar-svg:hover { background-color: #4b5563; }
+
+        /* Lista de Pendientes (Cola de impresión) */
+        .queue-container {
+            background-color: #111827;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .queue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #1f2937;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--primary-color);
+        }
 
         /* Panel de Vista Previa a la derecha */
         .preview-panel {
@@ -177,6 +204,7 @@
             justify-content: space-between;
             width: 100%;
             margin-bottom: 15px;
+            align-items: center;
         }
 
         .canvas-header p {
@@ -185,9 +213,13 @@
             font-size: 0.9rem;
         }
 
-        /* Tapete de diseño adaptado para acomodar múltiples elementos */
+        .status-message {
+            color: var(--secondary-color);
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
         .canvas-container {
-            /* Fondo cuadriculado oscuro simulando transparencia */
             background-image: 
                 linear-gradient(45deg, #1f2937 25%, transparent 25%), 
                 linear-gradient(-45deg, #1f2937 25%, transparent 25%), 
@@ -205,25 +237,18 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
         }
 
-        /* El elemento SVG principal que contendrá los textos */
         #svg-workspace {
             width: 100%;
             height: 100%;
             display: block;
         }
 
-        /* Estilo para los elementos arrastrables dentro del SVG */
         .draggable-text {
             cursor: grab;
-            user-select: none; /* Evita que el texto se seleccione como texto normal */
+            user-select: none;
         }
-        .draggable-text:active {
-            cursor: grabbing;
-        }
-        /* Efecto al pasar el ratón para saber que se puede agarrar */
-        .draggable-text:hover {
-            opacity: 0.8;
-        }
+        .draggable-text:active { cursor: grabbing; }
+        .draggable-text:hover { opacity: 0.8; }
 
         @media (max-width: 900px) {
             .app-container { flex-direction: column; }
@@ -236,7 +261,7 @@
 
     <div class="app-container">
         <div class="controls-panel">
-            <h2>Dimensiones del Rollo</h2>
+            <h2>1. Configurar Rollo</h2>
             <div class="dimensions-container">
                 <div class="form-group">
                     <label>Ancho (cm):</label>
@@ -248,63 +273,74 @@
                 </div>
             </div>
 
-            <h2 style="margin-top: 10px;">Crear Elemento</h2>
+            <h2>2. Preparar Elementos</h2>
             
             <div class="form-group">
-                <label>Número o Nombre:</label>
+                <label>Texto (Número o Nombre):</label>
                 <input type="text" id="texto-input" value="10" placeholder="Ej. 10 o RODRIGUEZ">
             </div>
 
-            <div class="form-group">
-                <label style="color: var(--primary-color);">Cargar Fuente Propia (.ttf / .otf):</label>
-                <input type="file" id="font-upload" accept=".ttf, .otf, .woff, .woff2">
-            </div>
-
-            <div class="form-group">
-                <label>Tipografía:</label>
-                <select id="fuente-select">
-                    <option value="'Anton', sans-serif" style="font-family: 'Anton', sans-serif;">Anton (Gruesa Deportiva)</option>
-                    <option value="'Bebas Neue', sans-serif" style="font-family: 'Bebas Neue', sans-serif;">Bebas Neue (Alta)</option>
-                    <option value="'Montserrat', sans-serif" style="font-family: 'Montserrat', sans-serif;">Montserrat</option>
-                </select>
+            <div class="dimensions-container">
+                <div class="form-group" style="flex: 2;">
+                    <label style="color: var(--primary-color);">Cargar Fuente (.ttf):</label>
+                    <input type="file" id="font-upload" accept=".ttf, .otf, .woff, .woff2">
+                </div>
+                <div class="form-group" style="flex: 3;">
+                    <label>Tipografía:</label>
+                    <select id="fuente-select">
+                        <option value="'Anton', sans-serif">Anton</option>
+                        <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                        <option value="'Montserrat', sans-serif">Montserrat</option>
+                    </select>
+                </div>
             </div>
 
             <div class="dimensions-container">
                 <div class="form-group">
-                    <label>Alto del Texto (cm):</label>
-                    <input type="number" id="alto-numero-input" value="22" min="1" step="1">
+                    <label>Alto Texto (cm):</label>
+                    <input type="number" id="alto-numero-input" value="22" min="1" step="0.5">
                 </div>
                 <div class="form-group">
                     <label>Color:</label>
                     <input type="color" id="color-input" value="#ffffff">
                 </div>
+                <div class="form-group">
+                    <label>¿Cuántos?:</label>
+                    <input type="number" id="cantidad-input" value="1" min="1" step="1" style="background-color: #1f2937; border-color: var(--secondary-color);">
+                </div>
             </div>
 
-            <button class="btn-add" onclick="agregarElemento()">+ Añadir al Lienzo</button>
+            <button class="btn-add" onclick="agregarACola()">↓ Añadir a la Cola de Producción</button>
 
-            <button class="btn-exportar-png" onclick="descargarPNG()">
-                Descargar Plantilla PNG
-                <span style="font-size: 0.8rem; font-weight: normal; margin-top: 4px;">Fondo Transparente para Imprimir</span>
-            </button>
-            <button class="btn-exportar-svg" onclick="descargarSVG()">Descargar Vector (SVG)</button>
+            <div class="queue-container" id="queue-list">
+                <div style="color: #6b7280; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>
+            </div>
+
+            <h2>3. Generar y Exportar</h2>
+            <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar y Auto-Acomodar</button>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn-clear" style="flex: 1;" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
+                <button class="btn-exportar-png" style="flex: 2;" onclick="descargarPNG()">💾 Descargar PNG</button>
+            </div>
+            <button class="btn-exportar-svg" style="margin-top: 10px;" onclick="descargarSVG()">💾 Mantener Exportación SVG</button>
         </div>
 
         <div class="preview-panel">
             <div class="canvas-header">
-                <h2 style="margin: 0;">Lienzo de Acomodo</h2>
+                <h2 style="margin: 0;">Lienzo Inteligente</h2>
                 <div style="text-align: right;">
                     <p id="medida-info">Plantilla: 57 cm x 112 cm</p>
-                    <p style="color: var(--primary-color);">Arrastra para mover. Doble clic para borrar.</p>
+                    <span id="status-info" class="status-message"></span>
                 </div>
             </div>
             
             <div class="canvas-container" id="canvas-wrapper">
                 <svg id="svg-workspace" xmlns="http://www.w3.org/2000/svg">
-                    <defs id="svg-defs">
-                        </defs>
+                    <defs id="svg-defs"></defs>
                     <g id="texto-container"></g>
                 </svg>
             </div>
+            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px;">* Una vez generados, puedes arrastrar los elementos con el ratón para aprovechar huecos. Doble clic para borrar uno.</p>
         </div>
     </div>
 
@@ -317,123 +353,206 @@
         const svgDefs = document.getElementById('svg-defs');
         const canvasWrapper = document.getElementById('canvas-wrapper');
         const medidaInfo = document.getElementById('medida-info');
+        const queueList = document.getElementById('queue-list');
+        const statusInfo = document.getElementById('status-info');
 
-        // Entorno para fuentes
         let fuentesPersonalizadas = {};
+        let colaProduccion = []; // Memoria para guardar los elementos antes de acomodarlos
 
-        // 1. Configuración Inicial del Lienzo
+        // 1. Configuración de pantalla
         function actualizarLienzo() {
             const anchoPlantillaCm = parseFloat(anchoInput.value) || 57;
             const altoPlantillaCm = parseFloat(altoInput.value) || 112;
-
             medidaInfo.textContent = `Plantilla: ${anchoPlantillaCm} cm x ${altoPlantillaCm} cm`;
             canvasWrapper.style.aspectRatio = `${anchoPlantillaCm} / ${altoPlantillaCm}`;
-
-            // 100 unidades internas equivalen a 1 cm en la vida real
             const viewBoxAncho = anchoPlantillaCm * 100;
             const viewBoxAlto = altoPlantillaCm * 100;
-
             svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
         }
 
-        // 2. Cargar Fuentes Personalizadas
+        // 2. Cargar Fuentes (Tu función original intacta)
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = function(evento) {
                 const base64Font = evento.target.result;
                 const fontName = 'Fuente_' + Math.random().toString(36).substring(7);
-                
                 fuentesPersonalizadas[fontName] = base64Font;
                 
-                // Inyectar en CSS para que la web lo vea
                 const newStyle = document.createElement('style');
-                newStyle.appendChild(document.createTextNode(`
-                    @font-face {
-                        font-family: '${fontName}';
-                        src: url('${base64Font}');
-                    }
-                `));
+                newStyle.appendChild(document.createTextNode(`@font-face { font-family: '${fontName}'; src: url('${base64Font}'); }`));
                 document.head.appendChild(newStyle);
 
-                // Inyectar en el SVG interno para que la descarga final lo incluya
                 const svgStyle = document.createElementNS("http://www.w3.org/2000/svg", "style");
-                svgStyle.textContent = `
-                    @font-face {
-                        font-family: '${fontName}';
-                        src: url('${base64Font}');
-                    }
-                `;
+                svgStyle.textContent = `@font-face { font-family: '${fontName}'; src: url('${base64Font}'); }`;
                 svgDefs.appendChild(svgStyle);
                 
-                // Añadir al menú desplegable
                 const select = document.getElementById('fuente-select');
                 const option = document.createElement('option');
                 option.value = `'${fontName}'`;
                 option.textContent = '★ ' + file.name;
                 option.style.fontFamily = fontName;
-                
                 select.appendChild(option);
                 select.value = `'${fontName}'`;
             };
             reader.readAsDataURL(file);
         });
 
-        // 3. Añadir Elemento al Lienzo (Sistema de Nodos)
-        function agregarElemento() {
-            const texto = document.getElementById('texto-input').value || " ";
+        // 3. Sistema de Cola de Producción (Añadir a la lista sin dibujar aún)
+        function agregarACola() {
+            const texto = document.getElementById('texto-input').value;
             const fuenteVal = document.getElementById('fuente-select').value;
-            const altoTextoCm = parseFloat(document.getElementById('alto-numero-input').value) || 22;
+            const altoTextoCm = parseFloat(document.getElementById('alto-numero-input').value);
             const colorTexto = document.getElementById('color-input').value;
+            const cantidad = parseInt(document.getElementById('cantidad-input').value) || 1;
 
-            // Convertir altura en cm a unidades de pixel SVG (1cm = 100px interno)
-            const tamanoTextoPx = altoTextoCm * 100;
+            if (!texto) { alert("Escribe un texto o número."); return; }
 
-            // Crear el texto SVG
-            const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            textoNode.textContent = texto;
-            
-            // Aparecerá siempre en el centro superior del lienzo inicialmente
-            const viewBoxAncho = (parseFloat(anchoInput.value) || 57) * 100;
-            textoNode.setAttribute('x', viewBoxAncho / 2); 
-            textoNode.setAttribute('y', tamanoTextoPx); 
-            
-            // Atributos visuales
-            textoNode.setAttribute('text-anchor', 'middle'); 
-            textoNode.setAttribute('dominant-baseline', 'alphabetic');
-            textoNode.setAttribute('fill', colorTexto); 
-            textoNode.setAttribute('font-family', fuenteVal);
-            textoNode.setAttribute('font-size', `${tamanoTextoPx}px`); 
-            textoNode.setAttribute('class', 'draggable-text'); // Clase para CSS
-            
-            // Evento para borrar al hacer doble clic
-            textoNode.addEventListener('dblclick', function() {
-                textoContainer.removeChild(textoNode);
+            // Guardar en la memoria
+            colaProduccion.push({
+                id: Date.now(),
+                texto: texto,
+                fuente: fuenteVal,
+                altoCm: altoTextoCm,
+                color: colorTexto,
+                cantidad: cantidad
             });
 
-            textoContainer.appendChild(textoNode);
+            actualizarVistaCola();
         }
 
-        // 4. Lógica Profesional de "Arrastrar y Soltar" (Drag & Drop) dentro del SVG
+        function actualizarVistaCola() {
+            if (colaProduccion.length === 0) {
+                queueList.innerHTML = '<div style="color: #6b7280; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>';
+                return;
+            }
+
+            queueList.innerHTML = '';
+            colaProduccion.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'queue-item';
+                div.innerHTML = `
+                    <span><b>${item.cantidad}x</b> "${item.texto}" (${item.altoCm}cm)</span>
+                    <button style="background: none; border: none; color: #ef4444; cursor: pointer;" onclick="eliminarDeCola(${index})">✕</button>
+                `;
+                queueList.appendChild(div);
+            });
+        }
+
+        function eliminarDeCola(index) {
+            colaProduccion.splice(index, 1);
+            actualizarVistaCola();
+        }
+
+        function limpiarTodo() {
+            colaProduccion = [];
+            textoContainer.innerHTML = '';
+            actualizarVistaCola();
+            statusInfo.textContent = '';
+        }
+
+        // 4. EL MOTOR DE ACOMODO AUTOMÁTICO (Bin Packing)
+        function autoAcomodar() {
+            if (colaProduccion.length === 0) {
+                alert("Añade elementos a la cola primero.");
+                return;
+            }
+
+            // Limpiar lienzo previo
+            textoContainer.innerHTML = '';
+            
+            const anchoLienzoPx = (parseFloat(anchoInput.value) || 57) * 100;
+            const altoLienzoPx = (parseFloat(altoInput.value) || 112) * 100;
+            const margenPx = 50; // Margen entre elementos (0.5 cm) para evitar que se peguen en el corte
+
+            // Variables para el algoritmo de filas (Shelf Packing)
+            let posXActual = margenPx;
+            let posYActual = margenPx;
+            let alturaFilaMaxima = 0;
+            
+            let totalAcomodados = 0;
+            let elementosNoCupieron = 0;
+
+            // Procesar cada elemento en la cola
+            colaProduccion.forEach(item => {
+                const tamanoTextoPx = item.altoCm * 100;
+
+                for (let i = 0; i < item.cantidad; i++) {
+                    // Crear el nodo temporalmente en el SVG para que el navegador pueda medir su ancho real
+                    const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textoNode.textContent = item.texto;
+                    textoNode.setAttribute('fill', item.color); 
+                    textoNode.setAttribute('font-family', item.fuente);
+                    textoNode.setAttribute('font-size', `${tamanoTextoPx}px`); 
+                    // Crucial para el cálculo de apilamiento: alinear desde arriba
+                    textoNode.setAttribute('dominant-baseline', 'hanging'); 
+                    textoNode.setAttribute('class', 'draggable-text');
+                    
+                    textoContainer.appendChild(textoNode);
+                    
+                    // Medir exactamente cuánto espacio físico ocupa esta palabra/número específico
+                    const caja = textoNode.getBBox();
+                    
+                    // Lógica de colisiones y filas
+                    if (posXActual + caja.width + margenPx > anchoLienzoPx) {
+                        // Si no cabe a lo ancho, saltamos a la siguiente fila hacia abajo
+                        posXActual = margenPx;
+                        posYActual += alturaFilaMaxima + margenPx;
+                        alturaFilaMaxima = 0; // Reiniciar altura para la nueva fila
+                    }
+
+                    // Verificar si ya nos salimos del alto total del material
+                    if (posYActual + caja.height > altoLienzoPx) {
+                        elementosNoCupieron++;
+                        textoContainer.removeChild(textoNode); // Quitarlo porque no cupo
+                        continue; // Intentar con el siguiente (por si es más pequeño)
+                    }
+
+                    // Si cabe, le asignamos sus coordenadas finales
+                    textoNode.setAttribute('x', posXActual);
+                    textoNode.setAttribute('y', posYActual);
+
+                    // Añadir evento para borrar manualmente
+                    textoNode.addEventListener('dblclick', function() {
+                        textoContainer.removeChild(textoNode);
+                    });
+
+                    // Actualizar variables para el siguiente elemento
+                    posXActual += caja.width + margenPx;
+                    // Guardar cuál fue el elemento más alto de esta fila
+                    if (caja.height > alturaFilaMaxima) {
+                        alturaFilaMaxima = caja.height;
+                    }
+                    
+                    totalAcomodados++;
+                }
+            });
+
+            // Reporte al usuario
+            if (elementosNoCupieron > 0) {
+                statusInfo.textContent = `Acomodados: ${totalAcomodados}. NO cupieron: ${elementosNoCupieron}`;
+                statusInfo.style.color = 'var(--danger-color)';
+                alert(`¡Atención! El lienzo se llenó. Se acomodaron ${totalAcomodados} elementos, pero ${elementosNoCupieron} no cupieron. Puedes crear un segundo archivo para el resto.`);
+            } else {
+                statusInfo.textContent = `¡Éxito! ${totalAcomodados} elementos acomodados.`;
+                statusInfo.style.color = 'var(--secondary-color)';
+            }
+        }
+
+        // 5. Arrastrar y Soltar (Tus funciones originales intactas)
         let elementoSeleccionado = null;
         let offset = { x: 0, y: 0 };
 
-        // Convierte la posición del ratón en la pantalla a coordenadas precisas dentro del lienzo SVG
         function obtenerPosicionMouse(evt) {
             let CTM = svgWorkspace.getScreenCTM();
-            return {
-                x: (evt.clientX - CTM.e) / CTM.a,
-                y: (evt.clientY - CTM.f) / CTM.d
-            };
+            return { x: (evt.clientX - CTM.e) / CTM.a, y: (evt.clientY - CTM.f) / CTM.d };
         }
 
         svgWorkspace.addEventListener('mousedown', function(evt) {
             if (evt.target.classList.contains('draggable-text')) {
                 elementoSeleccionado = evt.target;
                 let mousePos = obtenerPosicionMouse(evt);
-                // Calcular la diferencia entre donde hice clic y la coordenada real de la letra
                 offset.x = mousePos.x - parseFloat(elementoSeleccionado.getAttributeNS(null, "x"));
                 offset.y = mousePos.y - parseFloat(elementoSeleccionado.getAttributeNS(null, "y"));
             }
@@ -443,33 +562,22 @@
             if (elementoSeleccionado) {
                 evt.preventDefault();
                 let mousePos = obtenerPosicionMouse(evt);
-                // Mover el texto manteniendo la proporción de donde lo agarré
                 elementoSeleccionado.setAttributeNS(null, "x", mousePos.x - offset.x);
                 elementoSeleccionado.setAttributeNS(null, "y", mousePos.y - offset.y);
             }
         });
 
-        svgWorkspace.addEventListener('mouseup', function(evt) {
-            elementoSeleccionado = null; // Soltar el elemento
-        });
+        svgWorkspace.addEventListener('mouseup', () => elementoSeleccionado = null);
+        svgWorkspace.addEventListener('mouseleave', () => elementoSeleccionado = null);
 
-        svgWorkspace.addEventListener('mouseleave', function(evt) {
-            elementoSeleccionado = null; // Soltar si el ratón sale del área
-        });
-
-        // 5. Motor de Exportación (Descargas)
+        // 6. Exportaciones (Tus funciones originales intactas)
         function descargarPNG() {
-            const anchoPlantillaCm = parseFloat(anchoInput.value) || 57;
-            const altoPlantillaCm = parseFloat(altoInput.value) || 112;
-
-            // Resolución de impresión: ~59 píxeles por cm (150 DPI)
-            const factorDPI = 59.055; 
-            const canvasAncho = Math.round(anchoPlantillaCm * factorDPI);
-            const canvasAlto = Math.round(altoPlantillaCm * factorDPI);
-
+            const anchoCm = parseFloat(anchoInput.value) || 57;
+            const altoCm = parseFloat(altoInput.value) || 112;
+            const dpi = 59.055; 
             const canvas = document.createElement("canvas");
-            canvas.width = canvasAncho;
-            canvas.height = canvasAlto;
+            canvas.width = Math.round(anchoCm * dpi);
+            canvas.height = Math.round(altoCm * dpi);
             const ctx = canvas.getContext("2d");
 
             const svgData = new XMLSerializer().serializeToString(svgWorkspace);
@@ -478,15 +586,11 @@
             
             const img = new Image();
             img.onload = function() {
-                // Al dibujarlo en el Canvas vacío, el fondo es 100% transparente
-                ctx.drawImage(img, 0, 0, canvasAncho, canvasAlto);
-                
-                const pngUrl = canvas.toDataURL("image/png");
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const link = document.createElement("a");
-                link.download = `Plantilla_Completa.png`;
-                link.href = pngUrl;
+                link.download = `Corte_Automatico.png`;
+                link.href = canvas.toDataURL("image/png");
                 link.click();
-                
                 URL.revokeObjectURL(url);
             };
             img.src = url;
@@ -497,7 +601,7 @@
             const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.download = `Plantilla_Vectores.svg`;
+            link.download = `Corte_Automatico.svg`;
             link.href = url;
             document.body.appendChild(link);
             link.click();
@@ -505,7 +609,6 @@
             URL.revokeObjectURL(url);
         }
 
-        // Arrancar la app configurando el lienzo
         window.onload = actualizarLienzo;
 
     </script>
