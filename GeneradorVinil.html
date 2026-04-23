@@ -3,15 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edward Studio </title>
+    <title>Gang Sheet Studio - Nube Supabase Integrada</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.3/svg2pdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()" type="text/javascript"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        let cvReady = false;
+        function onOpenCvReady() {
+            cvReady = true;
+            const status = document.getElementById('cv-status');
+            const btn = document.getElementById('btn-scan');
+            if (status) status.style.display = 'none';
+            if (btn) btn.style.display = 'block';
+        }
+    </script>
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()" type="text/javascript"></script>
 
     <style>
         /* Diseño Visual y Profesional */
@@ -77,6 +87,7 @@
         .preview-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); flex-grow: 1; display: flex; flex-direction: column; width: 100%; }
         .canvas-header { display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
         .btn-clear-canvas { background-color: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-clear-canvas:hover { background-color: #334155; color: white; border-color: #94a3b8; }
         .canvas-header p { margin: 0; color: #94a3b8; font-size: 0.9rem; }
         .status-message { color: var(--secondary-color); font-weight: bold; font-size: 0.9rem; display: block; margin-top: 5px; }
 
@@ -131,7 +142,7 @@
                     <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-img" value="22" min="1" step="0.5"></div>
                     <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-img" value="1" min="1"></div>
                 </div>
-                <button class="btn-add" onclick="agregarAColaImagen()">↓ Añadir a la Cola de Impresión</button>
+                <button class="btn-add" onclick="agregarAColaImagen()">↓ Añadir a la Cola</button>
             </div>
 
             <div id="panel-pdf" class="form-group hidden-panel" style="gap: 15px;">
@@ -159,7 +170,7 @@
                     <select id="db-font-selector">
                         <option value="">Cargando desde la nube... ☁️</option>
                     </select>
-                    <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente seleccionada de la nube</button>
+                    <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente de la nube</button>
                 </div>
                 <div class="form-group">
                     <label style="color: var(--highlight);">Escribe la palabra (Usa tu abecedario):</label>
@@ -215,18 +226,20 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE SUPABASE (LA NUBE)
+        // 1. CONFIGURACIÓN DE SUPABASE (CORREGIDO)
         // ==========================================
         const supabaseUrl = 'https://msqfpkmusmpoismtkxrb.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zcWZwa211c21wb2lzbXRreHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Nzg5NDUsImV4cCI6MjA5MjU1NDk0NX0.PrL67uHOTJnjjys5Nb-w0XlclMXt_hNrJ2vXUku-VfE';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        // RENOMBRADO PARA EVITAR CONFLICTO CON LA LIBRERÍA
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let baseDatosGlobal = {}; // Variables globales
+        let baseDatosGlobal = {}; 
         const selectorFuentesDB = document.getElementById('db-font-selector');
 
         async function inicializarSupabase() {
             try {
-                let { data, error } = await supabase.from('abecedarios').select('*');
+                let { data, error } = await supabaseClient.from('abecedarios').select('*');
                 if (error) throw error;
                 
                 baseDatosGlobal = {};
@@ -238,7 +251,7 @@
                 actualizarSelectorFuentes();
             } catch (err) {
                 console.error("Error al conectar con Supabase:", err.message);
-                selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube</option>';
+                selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube. (Revisa SQL)</option>';
             }
         }
 
@@ -259,7 +272,7 @@
             if (!nombre) return;
             if (confirm(`¿Seguro que deseas eliminar "${nombre}" de Supabase permanentemente?`)) {
                 try {
-                    const { error } = await supabase.from('abecedarios').delete().eq('nombre', nombre);
+                    const { error } = await supabaseClient.from('abecedarios').delete().eq('nombre', nombre);
                     if (error) throw error;
                     delete baseDatosGlobal[nombre];
                     actualizarSelectorFuentes();
@@ -286,8 +299,7 @@
                 document.getElementById('btn-save-abc').disabled = true;
 
                 try {
-                    // Guardar o Actualizar en la base de datos de Supabase
-                    const { error } = await supabase.from('abecedarios').upsert({ 
+                    const { error } = await supabaseClient.from('abecedarios').upsert({ 
                         nombre: nombreFuente, 
                         data: abcNuevo 
                     }, { onConflict: 'nombre' });
@@ -300,7 +312,7 @@
                     selectorFuentesDB.value = nombreFuente;
                     cambiarTab('constructor');
                 } catch(e) {
-                    alert("Error al subir a Supabase: " + e.message + "\n(Revisa que creaste la tabla y desactivaste RLS).");
+                    alert("Error al subir a Supabase: " + e.message + "\n(Asegúrate de haber creado la tabla en SQL).");
                 } finally {
                     document.getElementById('btn-save-abc').textContent = "☁️ Subir a Supabase";
                     document.getElementById('btn-save-abc').disabled = false;
@@ -311,16 +323,9 @@
         }
 
         // ==========================================
-        // INICIALIZACIÓN GENERAL DEL SISTEMA
+        // 2. INICIALIZACIÓN Y PESTAÑAS
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-        let cvReady = false;
-        function onOpenCvReady() {
-            cvReady = true;
-            document.getElementById('cv-status').style.display = 'none';
-            document.getElementById('btn-scan').style.display = 'block';
-        }
 
         const anchoInput = document.getElementById('ancho-input');
         const altoInput = document.getElementById('alto-input');
@@ -360,7 +365,7 @@
         }
 
         // ==========================================
-        // MOTOR DE EXTRACCIÓN (OPENCV)
+        // 3. MOTOR DE EXTRACCIÓN (OPENCV)
         // ==========================================
         document.getElementById('pdf-ai-upload').addEventListener('change', function(e) { pdfFileGlobal = e.target.files[0]; });
 
@@ -423,7 +428,7 @@
         }
 
         // ==========================================
-        // MOTOR DE CONSTRUCCIÓN Y TETRIS
+        // 4. MOTOR DE CONSTRUCCIÓN (DESDE SUPABASE)
         // ==========================================
         function agregarAColaConstructor() {
             const nombreFuenteSelect = selectorFuentesDB.value;
@@ -460,7 +465,9 @@
             actualizarVistaCola();
         }
 
-        // (Funciones secundarias de utilidades: textos genéricos, limpieza, packer guillotine... se mantienen igual)
+        // ==========================================
+        // 5. MÉTODOS BÁSICOS (TEXTO Y PNG)
+        // ==========================================
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if(!file)return; const reader = new FileReader();
             reader.onload = function(ev) { try{ fuenteActual = opentype.parse(ev.target.result); }catch(e){} }; reader.readAsArrayBuffer(file);
@@ -491,7 +498,7 @@
             if (!imagenUnicaBase64) return;
             const altoCm = parseFloat(document.getElementById('alto-numero-input-img').value); const cantidad = parseInt(document.getElementById('cantidad-input-img').value) || 1;
             const altoPx = altoCm * PIXELES_POR_CM; const anchoPx = altoPx * proporImagenUnica;
-            colaProduccion.push({ tipo: 'imagen', nombreMostrar: `[IMG Suelta] ${nombreImgSuela.substring(0,8)}`, src: imagenUnicaBase64, ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx, cantidad: cantidad }); actualizarVistaCola();
+            colaProduccion.push({ tipo: 'imagen', nombreMostrar: `[IMG] ${nombreImgSuela.substring(0,8)}`, src: imagenUnicaBase64, ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx, cantidad: cantidad }); actualizarVistaCola();
         }
 
         function actualizarVistaCola() {
@@ -505,6 +512,9 @@
         function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
         function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
+        // ==========================================
+        // 6. MOTOR TETRIS Y RENDER
+        // ==========================================
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
             pack(w, h, rotatable) {
@@ -591,16 +601,16 @@
         svgWorkspace.addEventListener('mousedown', (e) => { let target = e.target; while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') target = target.parentNode; if (target && target.classList?.contains('draggable-piece')) { elementoSeleccionado = target; let pos = obtenerPosicionEvent(e); offset.x = pos.x - parseFloat(target.getAttribute('data-x')); offset.y = pos.y - parseFloat(target.getAttribute('data-y')); } });
         svgWorkspace.addEventListener('mousemove', (e) => { if (elementoSeleccionado) { e.preventDefault(); let pos = obtenerPosicionEvent(e); let newX = pos.x - offset.x, newY = pos.y - offset.y; elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`); elementoSeleccionado.setAttribute('data-x', newX); elementoSeleccionado.setAttribute('data-y', newY); } });
         svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; }); svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
-        svgWorkspace.addEventListener('touchstart', (e) => { /* Activo arriba */ }, {passive: false});
+        svgWorkspace.addEventListener('touchstart', (e) => { }, {passive: false});
 
         // EXPORTACIONES
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
         function descargarPDF() { document.getElementById('loader').style.display = 'block'; setTimeout(async () => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: anchoCm > altoCm ? 'landscape' : 'portrait', unit: 'cm', format: [anchoCm, altoCm] }); await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm }); pdf.save(`GangSheet_Produccion.pdf`); document.getElementById('loader').style.display = 'none'; }, 50); }
         
-        // Arrancar el programa
+        // Arrancar
         window.onload = function() {
             actualizarLienzo();
-            inicializarSupabase(); // Conecta con la Nube automáticamente
+            inicializarSupabase();
         };
     </script>
 </body>
