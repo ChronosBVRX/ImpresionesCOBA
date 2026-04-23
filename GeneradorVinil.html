@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gang Sheet Studio - IA OCR Blindada & Supabase</title>
+    <title>Gang Sheet Studio - IA OCR & Silueteado Quirúrgico (Corregido)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -79,7 +79,6 @@
         .gallery-item:hover { transform: scale(1.05); border-color: var(--primary-color); z-index: 5; }
         .gallery-item img { max-height: 80px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; padding: 5px; }
         
-        /* Cajas de texto coloreadas por la IA */
         .char-mapper { width: 100% !important; text-align: center; font-weight: bold; font-size: 1.3rem !important; border: 2px solid var(--border-color) !important; color: white !important; transition: 0.3s; }
         .char-mapper.ocr-success { border-color: var(--secondary-color) !important; background-color: rgba(16, 185, 129, 0.1) !important; }
         .char-mapper.ocr-doubt { border-color: var(--danger-color) !important; background-color: rgba(239, 68, 68, 0.1) !important; }
@@ -308,9 +307,14 @@
                 if (error) throw error;
                 
                 baseDatosGlobal = {};
-                if (data && data.length > 0) { data.forEach(fila => { baseDatosGlobal[fila.nombre] = fila.data; }); }
+                if (data && data.length > 0) {
+                    data.forEach(fila => { baseDatosGlobal[fila.nombre] = fila.data; });
+                }
                 actualizarSelectorFuentes();
-            } catch (err) { console.error("Error Supabase:", err.message); }
+            } catch (err) {
+                console.error("Error Supabase:", err.message);
+                selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube. (Revisa SQL)</option>';
+            }
         }
 
         function actualizarSelectorFuentes() {
@@ -330,19 +334,20 @@
                 try {
                     const { error } = await supabaseClient.from('abecedarios').delete().eq('nombre', nombre);
                     if (error) throw error;
-                    delete baseDatosGlobal[nombre]; actualizarSelectorFuentes();
-                } catch(err) { alert("Error al eliminar: " + err.message); }
+                    delete baseDatosGlobal[nombre];
+                    actualizarSelectorFuentes();
+                    alert("Fuente eliminada de la nube con éxito.");
+                } catch(err) { alert("Error al eliminar de Supabase: " + err.message); }
             }
         }
 
         // ==========================================
-        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA EXACTA BLINDADO
+        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA (CORRECCIÓN STRIDE MEMORIA)
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
         let piezasExtraidasTemp = [];
         
-        // Variables GLOBALES para la cola de OCR (Evita el Wasm Out of Memory)
         let tesseractWorker = null;
         let ocrQueue = [];
         let isOcrRunning = false;
@@ -372,7 +377,7 @@
         }
 
         async function extraerMascaraExacta(canvas) {
-            let src, gray, thresh, contours, hierarchy, mask;
+            let src, gray, thresh, contours, hierarchy, mask, maskClone;
             
             try {
                 src = cv.imread(canvas); 
@@ -408,8 +413,12 @@
                         
                         let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
                         let data = imgData.data;
+                        
+                        // CORRECCIÓN MAGISTRAL DEL STRIDE: Creamos un clon exacto de la región para que los bytes estén en fila
                         let maskRoi = mask.roi(rect);
-                        let maskData = maskRoi.data;
+                        maskClone = new cv.Mat();
+                        maskRoi.copyTo(maskClone); // ESTO EVITA LAS LÍNEAS HORIZONTALES (CORRUPCIÓN)
+                        let maskData = maskClone.data;
 
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
@@ -418,6 +427,8 @@
                             } 
                         }
                         tCtx.putImageData(imgData, 0, 0);
+                        
+                        maskClone.delete();
                         maskRoi.delete();
 
                         const base64 = tCanvas.toDataURL('image/png'); 
@@ -432,7 +443,7 @@
                             </div>
                         `);
 
-                        // Añadir a la fila de espera de la IA (No explota la memoria)
+                        // Añadir a la fila de espera de la IA sin saturar la RAM
                         ejecutarOCRAsincrono(base64, idPieza);
                         piezacount++;
                     }
@@ -445,14 +456,13 @@
                 alert("Error Visual: " + err); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
+                // LIMPIEZA ABSOLUTA DE MEMORIA C++
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
             }
         }
 
-        // ==============================================================
-        // MOTOR DE INTELIGENCIA ARTIFICIAL SEGURO (Previene Wasm Crash)
-        // ==============================================================
+        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR EN COLA (TESSERACT SEGURO)
         function ejecutarOCRAsincrono(base64Image, idPieza) {
             ocrQueue.push({ base64Image, idPieza });
             procesarFilaOCR();
@@ -462,7 +472,6 @@
             if (isOcrRunning || ocrQueue.length === 0) return;
             isOcrRunning = true;
 
-            // Inicializar el trabajador 1 sola vez en la vida
             if (!tesseractWorker) {
                 try {
                     tesseractWorker = await Tesseract.createWorker('eng');
@@ -476,7 +485,7 @@
             while (ocrQueue.length > 0) {
                 const { base64Image, idPieza } = ocrQueue.shift();
                 let inputElement = document.getElementById(`map_${idPieza}`);
-                if (!inputElement) continue; // Se borró la carta
+                if (!inputElement) continue; 
 
                 try {
                     const { data: { text, confidence } } = await tesseractWorker.recognize(base64Image);
@@ -720,13 +729,15 @@
             });
         }
 
+        // DRAG AND DROP
         let elementoSeleccionado = null; let offset = { x: 0, y: 0 };
         function obtenerPosicionEvent(evt) { let cx = evt.touches ? evt.touches[0].clientX : evt.clientX; let cy = evt.touches ? evt.touches[0].clientY : evt.clientY; let CTM = svgWorkspace.getScreenCTM(); return { x: (cx - CTM.e) / CTM.a, y: (cy - CTM.f) / CTM.d }; }
         svgWorkspace.addEventListener('mousedown', (e) => { let target = e.target; while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') target = target.parentNode; if (target && target.classList?.contains('draggable-piece')) { elementoSeleccionado = target; let pos = obtenerPosicionEvent(e); offset.x = pos.x - parseFloat(target.getAttribute('data-x')); offset.y = pos.y - parseFloat(target.getAttribute('data-y')); } });
         svgWorkspace.addEventListener('mousemove', (e) => { if (elementoSeleccionado) { e.preventDefault(); let pos = obtenerPosicionEvent(e); let newX = pos.x - offset.x, newY = pos.y - offset.y; elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`); elementoSeleccionado.setAttribute('data-x', newX); elementoSeleccionado.setAttribute('data-y', newY); } });
         svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; }); svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
-        svgWorkspace.addEventListener('touchstart', (e) => { /* JS Activo */ }, {passive: false});
+        svgWorkspace.addEventListener('touchstart', (e) => { }, {passive: false});
 
+        // EXPORTACIONES
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
         function descargarPDF() { document.getElementById('loader').style.display = 'block'; setTimeout(async () => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: anchoCm > altoCm ? 'landscape' : 'portrait', unit: 'cm', format: [anchoCm, altoCm] }); await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm }); pdf.save(`GangSheet_Produccion.pdf`); document.getElementById('loader').style.display = 'none'; }, 50); }
         
