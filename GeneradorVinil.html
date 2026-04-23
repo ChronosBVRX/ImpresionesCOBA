@@ -8,11 +8,12 @@
     <style>
         /* Diseño Visual e Intuitivo (CSS Completo) */
         :root {
-            --primary-color: #f59e0b; /* Dorado/Naranja */
+            --primary-color: #f59e0b; 
             --primary-hover: #d97706;
-            --secondary-color: #10b981; /* Verde Éxito */
+            --secondary-color: #10b981; 
             --secondary-hover: #059669;
             --danger-color: #ef4444; 
+            --danger-hover: #dc2626;
             --bg-color: #111827;
             --panel-bg: #1f2937;
             --text-color: #f3f4f6;
@@ -114,7 +115,7 @@
 
         .dimensions-container .form-group { flex: 1; }
 
-        /* Botones */
+        /* Botones del panel izquierdo */
         .btn-add {
             background-color: var(--secondary-color);
             color: white;
@@ -151,7 +152,9 @@
             font-size: 0.9rem;
             border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s;
         }
+        .btn-clear:hover { background-color: rgba(239, 68, 68, 0.1); }
 
         .btn-exportar-png, .btn-exportar-svg {
             background-color: #374151;
@@ -204,7 +207,28 @@
             justify-content: space-between;
             width: 100%;
             margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        /* NUEVO: Estilo para el botón de limpiar lienzo */
+        .btn-clear-canvas {
+            background-color: transparent;
+            color: #9ca3af;
+            border: 1px solid #4b5563;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+            display: inline-flex;
             align-items: center;
+            gap: 5px;
+        }
+        .btn-clear-canvas:hover {
+            background-color: #374151;
+            color: white;
+            border-color: #6b7280;
         }
 
         .canvas-header p {
@@ -217,6 +241,8 @@
             color: var(--secondary-color);
             font-weight: bold;
             font-size: 0.9rem;
+            display: block;
+            margin-top: 5px;
         }
 
         .canvas-container {
@@ -319,7 +345,7 @@
             <h2>3. Generar y Exportar</h2>
             <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar y Auto-Acomodar</button>
             <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button class="btn-clear" style="flex: 1;" onclick="limpiarTodo()">🗑️ Limpiar Todo</button>
+                <button class="btn-clear" style="flex: 1;" onclick="vaciarCola()">🗑️ Vaciar Cola</button>
                 <button class="btn-exportar-png" style="flex: 2;" onclick="descargarPNG()">💾 Descargar PNG</button>
             </div>
             <button class="btn-exportar-svg" style="margin-top: 10px;" onclick="descargarSVG()">💾 Mantener Exportación SVG</button>
@@ -327,7 +353,10 @@
 
         <div class="preview-panel">
             <div class="canvas-header">
-                <h2 style="margin: 0;">Lienzo Inteligente</h2>
+                <div>
+                    <h2 style="margin: 0;">Lienzo Inteligente</h2>
+                    <button class="btn-clear-canvas" onclick="limpiarLienzo()">🧹 Limpiar Lienzo</button>
+                </div>
                 <div style="text-align: right;">
                     <p id="medida-info">Plantilla: 57 cm x 112 cm</p>
                     <span id="status-info" class="status-message"></span>
@@ -370,7 +399,7 @@
             svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
         }
 
-        // 2. Cargar Fuentes (Tu función original intacta)
+        // 2. Cargar Fuentes
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -399,7 +428,7 @@
             reader.readAsDataURL(file);
         });
 
-        // 3. Sistema de Cola de Producción (Añadir a la lista sin dibujar aún)
+        // 3. Sistema de Cola de Producción
         function agregarACola() {
             const texto = document.getElementById('texto-input').value;
             const fuenteVal = document.getElementById('fuente-select').value;
@@ -409,7 +438,6 @@
 
             if (!texto) { alert("Escribe un texto o número."); return; }
 
-            // Guardar en la memoria
             colaProduccion.push({
                 id: Date.now(),
                 texto: texto,
@@ -445,28 +473,33 @@
             actualizarVistaCola();
         }
 
-        function limpiarTodo() {
+        // NUEVA FUNCIÓN: Solo borra la lista de pedidos
+        function vaciarCola() {
             colaProduccion = [];
-            textoContainer.innerHTML = '';
             actualizarVistaCola();
-            statusInfo.textContent = '';
         }
 
-        // 4. EL MOTOR DE ACOMODO AUTOMÁTICO (Bin Packing)
+        // NUEVA FUNCIÓN: Solo borra el área visual de trabajo (El lienzo)
+        function limpiarLienzo() {
+            textoContainer.innerHTML = '';
+            statusInfo.textContent = 'Lienzo en blanco.';
+            statusInfo.style.color = '#9ca3af';
+        }
+
+        // 4. Motor de Acomodo Automático (Bin Packing)
         function autoAcomodar() {
             if (colaProduccion.length === 0) {
                 alert("Añade elementos a la cola primero.");
                 return;
             }
 
-            // Limpiar lienzo previo
-            textoContainer.innerHTML = '';
+            // Limpiar lienzo previo antes de generar el nuevo
+            limpiarLienzo();
             
             const anchoLienzoPx = (parseFloat(anchoInput.value) || 57) * 100;
             const altoLienzoPx = (parseFloat(altoInput.value) || 112) * 100;
-            const margenPx = 50; // Margen entre elementos (0.5 cm) para evitar que se peguen en el corte
+            const margenPx = 50; 
 
-            // Variables para el algoritmo de filas (Shelf Packing)
             let posXActual = margenPx;
             let posYActual = margenPx;
             let alturaFilaMaxima = 0;
@@ -474,53 +507,42 @@
             let totalAcomodados = 0;
             let elementosNoCupieron = 0;
 
-            // Procesar cada elemento en la cola
             colaProduccion.forEach(item => {
                 const tamanoTextoPx = item.altoCm * 100;
 
                 for (let i = 0; i < item.cantidad; i++) {
-                    // Crear el nodo temporalmente en el SVG para que el navegador pueda medir su ancho real
                     const textoNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
                     textoNode.textContent = item.texto;
                     textoNode.setAttribute('fill', item.color); 
                     textoNode.setAttribute('font-family', item.fuente);
                     textoNode.setAttribute('font-size', `${tamanoTextoPx}px`); 
-                    // Crucial para el cálculo de apilamiento: alinear desde arriba
                     textoNode.setAttribute('dominant-baseline', 'hanging'); 
                     textoNode.setAttribute('class', 'draggable-text');
                     
                     textoContainer.appendChild(textoNode);
                     
-                    // Medir exactamente cuánto espacio físico ocupa esta palabra/número específico
                     const caja = textoNode.getBBox();
                     
-                    // Lógica de colisiones y filas
                     if (posXActual + caja.width + margenPx > anchoLienzoPx) {
-                        // Si no cabe a lo ancho, saltamos a la siguiente fila hacia abajo
                         posXActual = margenPx;
                         posYActual += alturaFilaMaxima + margenPx;
-                        alturaFilaMaxima = 0; // Reiniciar altura para la nueva fila
+                        alturaFilaMaxima = 0; 
                     }
 
-                    // Verificar si ya nos salimos del alto total del material
                     if (posYActual + caja.height > altoLienzoPx) {
                         elementosNoCupieron++;
-                        textoContainer.removeChild(textoNode); // Quitarlo porque no cupo
-                        continue; // Intentar con el siguiente (por si es más pequeño)
+                        textoContainer.removeChild(textoNode); 
+                        continue; 
                     }
 
-                    // Si cabe, le asignamos sus coordenadas finales
                     textoNode.setAttribute('x', posXActual);
                     textoNode.setAttribute('y', posYActual);
 
-                    // Añadir evento para borrar manualmente
                     textoNode.addEventListener('dblclick', function() {
                         textoContainer.removeChild(textoNode);
                     });
 
-                    // Actualizar variables para el siguiente elemento
                     posXActual += caja.width + margenPx;
-                    // Guardar cuál fue el elemento más alto de esta fila
                     if (caja.height > alturaFilaMaxima) {
                         alturaFilaMaxima = caja.height;
                     }
@@ -529,18 +551,17 @@
                 }
             });
 
-            // Reporte al usuario
             if (elementosNoCupieron > 0) {
                 statusInfo.textContent = `Acomodados: ${totalAcomodados}. NO cupieron: ${elementosNoCupieron}`;
                 statusInfo.style.color = 'var(--danger-color)';
-                alert(`¡Atención! El lienzo se llenó. Se acomodaron ${totalAcomodados} elementos, pero ${elementosNoCupieron} no cupieron. Puedes crear un segundo archivo para el resto.`);
+                alert(`¡Atención! El lienzo se llenó. Se acomodaron ${totalAcomodados} elementos, pero ${elementosNoCupieron} no cupieron. Puedes descargar este PNG, darle a "Limpiar Lienzo" y generar el resto.`);
             } else {
                 statusInfo.textContent = `¡Éxito! ${totalAcomodados} elementos acomodados.`;
                 statusInfo.style.color = 'var(--secondary-color)';
             }
         }
 
-        // 5. Arrastrar y Soltar (Tus funciones originales intactas)
+        // 5. Arrastrar y Soltar
         let elementoSeleccionado = null;
         let offset = { x: 0, y: 0 };
 
@@ -570,7 +591,7 @@
         svgWorkspace.addEventListener('mouseup', () => elementoSeleccionado = null);
         svgWorkspace.addEventListener('mouseleave', () => elementoSeleccionado = null);
 
-        // 6. Exportaciones (Tus funciones originales intactas)
+        // 6. Exportaciones
         function descargarPNG() {
             const anchoCm = parseFloat(anchoInput.value) || 57;
             const altoCm = parseFloat(altoInput.value) || 112;
