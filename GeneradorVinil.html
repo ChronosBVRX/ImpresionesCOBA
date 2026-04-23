@@ -156,18 +156,9 @@
                 <div class="form-group" style="margin-top: 15px;">
                     <label>2. Sube el PDF con los diseños:</label>
                     <input type="file" id="pdf-ai-upload" accept="application/pdf">
-                    
-                    <div style="margin-top: 15px; padding: 10px; background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <label style="color: var(--highlight);">Fusión de Tinta (Acentos/Z):</label>
-                            <span id="merge-val" style="color: white; font-weight: bold; font-size: 0.85rem;">12</span>
-                        </div>
-                        <input type="range" id="merge-distance" min="1" max="30" value="12" style="width: 100%; margin-top: 8px;" oninput="document.getElementById('merge-val').textContent = this.value">
-                        <p style="font-size: 0.75rem; color: #64748b; margin: 5px 0 0 0; line-height: 1.3;">Sube esto si los acentos (Á), puntos o fragmentos de letras salen como piezas separadas.</p>
-                    </div>
 
                     <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">🔍 Escanear Piezas del PDF</button>
-                    <div id="cv-loader">Analizando, uniendo acentos y limpiando fondos... 🚀</div>
+                    <div id="cv-loader">Analizando trazos precisos y limpiando fondos... 🚀</div>
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
@@ -220,6 +211,10 @@
                     <div class="form-group">
                         <label style="color: var(--highlight);">Escribe la palabra (Usa tu abecedario):</label>
                         <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
+                    </div>
+                    <div class="espaciado-letras">
+                        <label>Separación entre letras:</label>
+                        <input type="range" id="letter-spacing" min="0" max="50" value="10" style="width: 50%;">
                     </div>
                     <div class="dimensions-container" style="margin-top: 10px;">
                         <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-const" value="22" min="1" step="0.5"></div>
@@ -351,7 +346,7 @@
         }
 
         // ==========================================
-        // ENTORNO 1: EXTRACTOR DE PDF Y VISIÓN ARTIFICIAL BLINDADA
+        // ENTORNO 1: EXTRACTOR DE PDF Y VISIÓN ARTIFICIAL (CORREGIDO SIN FUSIÓN)
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
@@ -385,26 +380,21 @@
         }
 
         function extraerContornosConOpenCV(canvas) {
-            // Variables nativas de OpenCV inicializadas afuera para asegurar su limpieza
-            let src, gray, thresh, M, mergedThresh, contours, hierarchy;
+            let src, gray, thresh, contours, hierarchy;
             
             try {
                 src = cv.imread(canvas); 
                 gray = new cv.Mat(); 
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
+                // Invertir imagen y usar OTSU
                 thresh = new cv.Mat(); 
                 cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
                 
-                // BLOQUE SEGURO: DILATACIÓN
-                let mergeDistance = parseInt(document.getElementById('merge-distance').value) || 12;
-                M = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(mergeDistance, mergeDistance));
-                mergedThresh = new cv.Mat();
-                cv.dilate(thresh, mergedThresh, M, new cv.Point(-1, -1), 1);
-
+                // YA NO HAY DILATACIÓN AQUÍ. Búsqueda de contornos directa sobre cada pedacito de tinta.
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
-                cv.findContours(mergedThresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
                 const gallery = document.getElementById('pdf-gallery-master'); gallery.innerHTML = '';
@@ -414,6 +404,7 @@
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
                     
+                    // Umbral bajado a 100 para capturar acentos, puntos y comas.
                     if (area > 100) {
                         let rect = cv.boundingRect(cnt);
                         
@@ -422,6 +413,7 @@
                         let tCtx = tCanvas.getContext('2d');
                         tCtx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
                         
+                        // Borrado de fondo blanco
                         let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
                         let data = imgData.data;
                         for (let j = 0; j < data.length; j += 4) { 
@@ -447,7 +439,7 @@
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
                 
                 if (piezacount === 0) {
-                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron piezas útiles. Ajusta la fusión de tinta.</div>';
+                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron piezas útiles. Intenta con un PDF diferente.</div>';
                 }
 
             } catch (err) { 
@@ -455,12 +447,10 @@
                 alert("Error C++ en OpenCV: " + msg + "\nIntenta recargar la página si el problema persiste."); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
-                // LIMPIEZA ABSOLUTA PASE LO QUE PASE (Memory Leak Prevent)
+                // LIMPIEZA ABSOLUTA
                 if(src) src.delete(); 
                 if(gray) gray.delete(); 
                 if(thresh) thresh.delete(); 
-                if(mergedThresh) mergedThresh.delete(); 
-                if(M) M.delete(); 
                 if(contours) contours.delete(); 
                 if(hierarchy) hierarchy.delete();
             }
@@ -548,14 +538,11 @@
             const palabra = document.getElementById('palabra-construida').value.toUpperCase();
             const altoCm = parseFloat(document.getElementById('alto-numero-input-const').value);
             const cantidad = parseInt(document.getElementById('cantidad-input-const').value) || 1;
-            
+            const espaciadoPx = parseInt(document.getElementById('letter-spacing').value) * (altoCm/10); 
+
             if (!palabra) return;
 
             const altoPx = altoCm * PIXELES_POR_CM;
-            // Espaciado ajustado dinámicamente: un valor estándar de 10 equivale al 10% del alto
-            const espacioRango = document.getElementById('letter-spacing') ? parseFloat(document.getElementById('letter-spacing').value) : 10;
-            const espaciadoPx = (espacioRango / 100) * altoPx;
-
             let currentX = 0; let caracteresArmados = [];
 
             for (let i = 0; i < palabra.length; i++) {
