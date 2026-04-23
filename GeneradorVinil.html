@@ -3,21 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Automático de Gang Sheets</title>
+    <title>Generador Automático de Gang Sheets (Responsivo)</title>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@800&display=swap" rel="stylesheet">
     <style>
-        /* Diseño Visual e Intuitivo (CSS Completo) */
+        /* Diseño Visual, Intuitivo y Responsivo (CSS Completo) */
         :root {
             --primary-color: #f59e0b; 
             --primary-hover: #d97706;
             --secondary-color: #10b981; 
             --secondary-hover: #059669;
             --danger-color: #ef4444; 
-            --danger-hover: #dc2626;
             --bg-color: #111827;
             --panel-bg: #1f2937;
             --text-color: #f3f4f6;
             --border-color: #374151;
+        }
+
+        /* Box-sizing crucial para responsividad real */
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
         body {
@@ -52,7 +56,7 @@
             gap: 15px;
         }
 
-        .controls-panel h2, .controls-panel h3 {
+        .controls-panel h2 {
             margin-top: 0;
             margin-bottom: 5px;
             color: #ffffff;
@@ -76,17 +80,18 @@
         .form-group input[type="text"], 
         .form-group input[type="number"], 
         .form-group select {
-            padding: 8px 10px;
+            padding: 10px;
             background-color: #374151;
             color: white;
             border: 1px solid var(--border-color);
             border-radius: 6px;
             font-size: 1rem;
+            width: 100%;
         }
 
         .form-group input[type="color"] {
             width: 100%;
-            height: 35px;
+            height: 40px;
             padding: 2px;
             background-color: #374151;
             border: 1px solid var(--border-color);
@@ -102,43 +107,46 @@
             font-size: 0.85rem;
             color: white;
             cursor: pointer;
+            width: 100%;
+            overflow: hidden; /* Evita que nombres de archivo largos rompan el diseño */
         }
 
         .dimensions-container {
             display: flex;
             gap: 10px;
             background-color: #111827;
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
             border: 1px solid var(--border-color);
         }
 
-        .dimensions-container .form-group { flex: 1; }
+        .dimensions-container .form-group { flex: 1; min-width: 0; } /* min-width: 0 evita desbordamientos en flex */
 
         /* Botones del panel izquierdo */
-        .btn-add {
-            background-color: var(--secondary-color);
-            color: white;
+        .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-svg {
+            width: 100%;
             border: none;
-            padding: 10px;
-            font-size: 0.95rem;
-            font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-add {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 12px;
+            font-size: 0.95rem;
+            font-weight: bold;
         }
         .btn-add:hover { background-color: var(--secondary-hover); }
 
         .btn-auto {
             background-color: var(--primary-color);
             color: #000;
-            border: none;
-            padding: 12px;
+            padding: 15px;
             font-size: 1.05rem;
             font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
             margin-top: 10px;
             box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
         }
@@ -148,11 +156,8 @@
             background-color: transparent;
             color: var(--danger-color);
             border: 1px solid var(--danger-color);
-            padding: 8px;
+            padding: 10px;
             font-size: 0.9rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
         }
         .btn-clear:hover { background-color: rgba(239, 68, 68, 0.1); }
 
@@ -162,11 +167,15 @@
             border: 1px solid #4b5563;
             padding: 12px;
             font-size: 0.95rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
         }
         .btn-exportar-png:hover, .btn-exportar-svg:hover { background-color: #4b5563; }
+
+        /* Contenedor de botones horizontales */
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
 
         /* Lista de Pendientes (Cola de impresión) */
         .queue-container {
@@ -183,11 +192,12 @@
             justify-content: space-between;
             align-items: center;
             background-color: #1f2937;
-            padding: 5px 10px;
+            padding: 8px 10px;
             margin-bottom: 5px;
             border-radius: 4px;
             font-size: 0.85rem;
             border-left: 3px solid var(--primary-color);
+            word-break: break-all;
         }
 
         /* Panel de Vista Previa a la derecha */
@@ -200,6 +210,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            width: 100%;
         }
 
         .canvas-header {
@@ -208,14 +219,15 @@
             width: 100%;
             margin-bottom: 15px;
             align-items: flex-start;
+            flex-wrap: wrap; /* Permite que el texto baje si no cabe */
+            gap: 10px;
         }
 
-        /* NUEVO: Estilo para el botón de limpiar lienzo */
         .btn-clear-canvas {
             background-color: transparent;
             color: #9ca3af;
             border: 1px solid #4b5563;
-            padding: 6px 12px;
+            padding: 8px 12px;
             font-size: 0.85rem;
             border-radius: 6px;
             cursor: pointer;
@@ -231,12 +243,7 @@
             border-color: #6b7280;
         }
 
-        .canvas-header p {
-            margin: 0;
-            color: #9ca3af;
-            font-size: 0.9rem;
-        }
-
+        .canvas-header p { margin: 0; color: #9ca3af; font-size: 0.9rem; }
         .status-message {
             color: var(--secondary-color);
             font-weight: bold;
@@ -257,10 +264,14 @@
             border: 1px solid #4b5563;
             display: flex;
             position: relative;
+            /* Altura adaptativa pero con un máximo para que no se salga de la pantalla */
             height: 80vh; 
+            max-height: 800px;
             aspect-ratio: 57 / 112; 
             overflow: hidden;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            /* Evita acciones predeterminadas del navegador al tocar el lienzo (como el scroll accidental) */
+            touch-action: none; 
         }
 
         #svg-workspace {
@@ -272,14 +283,41 @@
         .draggable-text {
             cursor: grab;
             user-select: none;
+            /* Asegura que los dispositivos táctiles entiendan que esto se manipula */
+            touch-action: none; 
         }
         .draggable-text:active { cursor: grabbing; }
         .draggable-text:hover { opacity: 0.8; }
 
-        @media (max-width: 900px) {
-            .app-container { flex-direction: column; }
-            .controls-panel { width: auto; }
-            .canvas-container { height: 60vh; width: 100%; }
+        /* ==========================================
+           MEDIA QUERIES (MAGIA RESPONSIVA)
+           ========================================== */
+        
+        /* Tablets (hasta 1024px) */
+        @media (max-width: 1024px) {
+            .app-container { 
+                flex-direction: column; /* Apila el panel sobre el lienzo */
+            }
+            .controls-panel { 
+                width: 100%; /* El panel usa todo el ancho */
+            }
+            .canvas-container { 
+                height: auto; 
+                width: 100%; /* El lienzo se expande a lo ancho y ajusta su alto por el aspect-ratio */
+                max-height: 70vh;
+            }
+            .dimensions-container {
+                flex-wrap: wrap; /* Si las cajas no caben, se apilan */
+            }
+        }
+
+        /* Celulares (hasta 600px) */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .button-row { flex-direction: column; } /* Botones apilados en celulares */
+            .btn-clear, .btn-exportar-png { width: 100%; }
+            .canvas-header { flex-direction: column; align-items: flex-start; text-align: left; }
+            .canvas-header div { text-align: left !important; }
         }
     </style>
 </head>
@@ -307,11 +345,11 @@
             </div>
 
             <div class="dimensions-container">
-                <div class="form-group" style="flex: 2;">
+                <div class="form-group" style="flex: 1;">
                     <label style="color: var(--primary-color);">Cargar Fuente (.ttf):</label>
                     <input type="file" id="font-upload" accept=".ttf, .otf, .woff, .woff2">
                 </div>
-                <div class="form-group" style="flex: 3;">
+                <div class="form-group" style="flex: 1;">
                     <label>Tipografía:</label>
                     <select id="fuente-select">
                         <option value="'Anton', sans-serif">Anton</option>
@@ -323,7 +361,7 @@
 
             <div class="dimensions-container">
                 <div class="form-group">
-                    <label>Alto Texto (cm):</label>
+                    <label>Alto (cm):</label>
                     <input type="number" id="alto-numero-input" value="22" min="1" step="0.5">
                 </div>
                 <div class="form-group">
@@ -344,7 +382,7 @@
 
             <h2>3. Generar y Exportar</h2>
             <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar y Auto-Acomodar</button>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div class="button-row">
                 <button class="btn-clear" style="flex: 1;" onclick="vaciarCola()">🗑️ Vaciar Cola</button>
                 <button class="btn-exportar-png" style="flex: 2;" onclick="descargarPNG()">💾 Descargar PNG</button>
             </div>
@@ -369,7 +407,7 @@
                     <g id="texto-container"></g>
                 </svg>
             </div>
-            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px;">* Una vez generados, puedes arrastrar los elementos con el ratón para aprovechar huecos. Doble clic para borrar uno.</p>
+            <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 10px; text-align: center;">* Arrastra los elementos (con el ratón o tu dedo) para aprovechar huecos. Doble clic (o doble toque) para borrar uno.</p>
         </div>
     </div>
 
@@ -386,14 +424,18 @@
         const statusInfo = document.getElementById('status-info');
 
         let fuentesPersonalizadas = {};
-        let colaProduccion = []; // Memoria para guardar los elementos antes de acomodarlos
+        let colaProduccion = []; 
 
         // 1. Configuración de pantalla
         function actualizarLienzo() {
             const anchoPlantillaCm = parseFloat(anchoInput.value) || 57;
             const altoPlantillaCm = parseFloat(altoInput.value) || 112;
             medidaInfo.textContent = `Plantilla: ${anchoPlantillaCm} cm x ${altoPlantillaCm} cm`;
+            
+            // Forzar proporción en CSS
             canvasWrapper.style.aspectRatio = `${anchoPlantillaCm} / ${altoPlantillaCm}`;
+            
+            // Escala interna SVG (100px = 1cm)
             const viewBoxAncho = anchoPlantillaCm * 100;
             const viewBoxAlto = altoPlantillaCm * 100;
             svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
@@ -420,7 +462,12 @@
                 const select = document.getElementById('fuente-select');
                 const option = document.createElement('option');
                 option.value = `'${fontName}'`;
-                option.textContent = '★ ' + file.name;
+                
+                // Truncar nombre si es muy largo para móvil
+                let displayName = file.name;
+                if(displayName.length > 15) displayName = displayName.substring(0, 15) + '...';
+                
+                option.textContent = '★ ' + displayName;
                 option.style.fontFamily = fontName;
                 select.appendChild(option);
                 select.value = `'${fontName}'`;
@@ -462,7 +509,7 @@
                 div.className = 'queue-item';
                 div.innerHTML = `
                     <span><b>${item.cantidad}x</b> "${item.texto}" (${item.altoCm}cm)</span>
-                    <button style="background: none; border: none; color: #ef4444; cursor: pointer;" onclick="eliminarDeCola(${index})">✕</button>
+                    <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px;" onclick="eliminarDeCola(${index})">✕</button>
                 `;
                 queueList.appendChild(div);
             });
@@ -473,13 +520,11 @@
             actualizarVistaCola();
         }
 
-        // NUEVA FUNCIÓN: Solo borra la lista de pedidos
         function vaciarCola() {
             colaProduccion = [];
             actualizarVistaCola();
         }
 
-        // NUEVA FUNCIÓN: Solo borra el área visual de trabajo (El lienzo)
         function limpiarLienzo() {
             textoContainer.innerHTML = '';
             statusInfo.textContent = 'Lienzo en blanco.';
@@ -493,7 +538,6 @@
                 return;
             }
 
-            // Limpiar lienzo previo antes de generar el nuevo
             limpiarLienzo();
             
             const anchoLienzoPx = (parseFloat(anchoInput.value) || 57) * 100;
@@ -538,8 +582,18 @@
                     textoNode.setAttribute('x', posXActual);
                     textoNode.setAttribute('y', posYActual);
 
-                    textoNode.addEventListener('dblclick', function() {
-                        textoContainer.removeChild(textoNode);
+                    // Evento para borrar (PC y Móvil)
+                    textoNode.addEventListener('dblclick', function() { textoContainer.removeChild(textoNode); });
+                    // Simulación de doble toque para móviles
+                    let lastTouchTime = 0;
+                    textoNode.addEventListener('touchend', function(e) {
+                        let currentTime = new Date().getTime();
+                        let tapLength = currentTime - lastTouchTime;
+                        if (tapLength < 500 && tapLength > 0) {
+                            textoContainer.removeChild(textoNode);
+                            e.preventDefault();
+                        }
+                        lastTouchTime = currentTime;
                     });
 
                     posXActual += caja.width + margenPx;
@@ -554,42 +608,65 @@
             if (elementosNoCupieron > 0) {
                 statusInfo.textContent = `Acomodados: ${totalAcomodados}. NO cupieron: ${elementosNoCupieron}`;
                 statusInfo.style.color = 'var(--danger-color)';
-                alert(`¡Atención! El lienzo se llenó. Se acomodaron ${totalAcomodados} elementos, pero ${elementosNoCupieron} no cupieron. Puedes descargar este PNG, darle a "Limpiar Lienzo" y generar el resto.`);
+                alert(`¡Atención! El lienzo se llenó. Se acomodaron ${totalAcomodados} elementos, pero ${elementosNoCupieron} no cupieron.`);
             } else {
                 statusInfo.textContent = `¡Éxito! ${totalAcomodados} elementos acomodados.`;
                 statusInfo.style.color = 'var(--secondary-color)';
             }
         }
 
-        // 5. Arrastrar y Soltar
+        // 5. Arrastrar y Soltar (Avanzado: Soporte para Ratón y Touch/Dedos)
         let elementoSeleccionado = null;
         let offset = { x: 0, y: 0 };
 
-        function obtenerPosicionMouse(evt) {
+        // Unificamos la forma de leer las coordenadas, ya sea de un ratón o de un dedo
+        function obtenerPosicionEvent(evt) {
+            let clientX, clientY;
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            }
+            
             let CTM = svgWorkspace.getScreenCTM();
-            return { x: (evt.clientX - CTM.e) / CTM.a, y: (evt.clientY - CTM.f) / CTM.d };
+            return { x: (clientX - CTM.e) / CTM.a, y: (clientY - CTM.f) / CTM.d };
         }
 
-        svgWorkspace.addEventListener('mousedown', function(evt) {
+        function iniciarArrastre(evt) {
             if (evt.target.classList.contains('draggable-text')) {
                 elementoSeleccionado = evt.target;
-                let mousePos = obtenerPosicionMouse(evt);
-                offset.x = mousePos.x - parseFloat(elementoSeleccionado.getAttributeNS(null, "x"));
-                offset.y = mousePos.y - parseFloat(elementoSeleccionado.getAttributeNS(null, "y"));
+                let eventPos = obtenerPosicionEvent(evt);
+                offset.x = eventPos.x - parseFloat(elementoSeleccionado.getAttributeNS(null, "x"));
+                offset.y = eventPos.y - parseFloat(elementoSeleccionado.getAttributeNS(null, "y"));
             }
-        });
+        }
 
-        svgWorkspace.addEventListener('mousemove', function(evt) {
+        function duranteArrastre(evt) {
             if (elementoSeleccionado) {
-                evt.preventDefault();
-                let mousePos = obtenerPosicionMouse(evt);
-                elementoSeleccionado.setAttributeNS(null, "x", mousePos.x - offset.x);
-                elementoSeleccionado.setAttributeNS(null, "y", mousePos.y - offset.y);
+                evt.preventDefault(); // Evita que la pantalla del celular se mueva mientras arrastras
+                let eventPos = obtenerPosicionEvent(evt);
+                elementoSeleccionado.setAttributeNS(null, "x", eventPos.x - offset.x);
+                elementoSeleccionado.setAttributeNS(null, "y", eventPos.y - offset.y);
             }
-        });
+        }
 
-        svgWorkspace.addEventListener('mouseup', () => elementoSeleccionado = null);
-        svgWorkspace.addEventListener('mouseleave', () => elementoSeleccionado = null);
+        function terminarArrastre() {
+            elementoSeleccionado = null;
+        }
+
+        // Eventos para Mouse (Computadora)
+        svgWorkspace.addEventListener('mousedown', iniciarArrastre);
+        svgWorkspace.addEventListener('mousemove', duranteArrastre);
+        svgWorkspace.addEventListener('mouseup', terminarArrastre);
+        svgWorkspace.addEventListener('mouseleave', terminarArrastre);
+
+        // Eventos para Touch (Celulares y Tablets)
+        svgWorkspace.addEventListener('touchstart', iniciarArrastre, {passive: false});
+        svgWorkspace.addEventListener('touchmove', duranteArrastre, {passive: false});
+        svgWorkspace.addEventListener('touchend', terminarArrastre);
+        svgWorkspace.addEventListener('touchcancel', terminarArrastre);
 
         // 6. Exportaciones
         function descargarPNG() {
