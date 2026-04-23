@@ -43,23 +43,14 @@
 
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
         
-        /* Barra de Navegación Principal (NUEVO) */
+        /* Barra de Navegación Principal */
         .top-navbar {
-            background-color: var(--topbar-bg);
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--primary-color);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 100;
+            background-color: var(--topbar-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--primary-color); box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100;
         }
         .top-navbar h1 { margin: 0; font-size: 1.5rem; color: white; display: flex; align-items: center; gap: 10px; }
         .nav-buttons { display: flex; gap: 10px; }
-        .nav-btn {
-            background-color: transparent; border: 2px solid var(--border-color); color: #94a3b8;
-            padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s;
-        }
+        .nav-btn { background-color: transparent; border: 2px solid var(--border-color); color: #94a3b8; padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
         .nav-btn.active { background-color: var(--primary-color); border-color: var(--primary-color); color: #000; }
         .nav-btn:hover:not(.active) { background-color: var(--border-color); color: white; }
 
@@ -81,7 +72,7 @@
         .dimensions-container { display: flex; gap: 10px; background-color: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         .dimensions-container .form-group { flex: 1; min-width: 0; }
 
-        /* Pestañas Secundarias (Para el Modo Producción) */
+        /* Pestañas Secundarias */
         .type-selector { display: flex; background-color: #0f172a; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px; flex-wrap: wrap; }
         .type-btn { flex: 1; min-width: 30%; padding: 10px 5px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none; transition: 0.3s; border-bottom: 1px solid var(--border-color); }
         .type-btn.active { background-color: var(--highlight); color: white; border-bottom: none; }
@@ -290,16 +281,14 @@
         // CONTROL DE ENTORNOS (LAS DOS APLICACIONES)
         // ==========================================
         function switchEnvironment(env) {
-            // Actualizar botones del Navbar
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`nav-btn-${env}`).classList.add('active');
             
-            // Cambiar contenedor activo
             document.querySelectorAll('.env-wrapper').forEach(wrapper => wrapper.classList.remove('active-env'));
             document.getElementById(`env-${env}`).classList.add('active-env');
             
             if (env === 'produccion') {
-                actualizarLienzo(); // Asegura que el canvas se acomode al cambiar de vista
+                actualizarLienzo(); 
             }
         }
 
@@ -358,7 +347,7 @@
         }
 
         // ==========================================
-        // ENTORNO 1: EXTRACTOR Y GUARDADO EN DB
+        // ENTORNO 1: EXTRACTOR DE PDF Y VISIÓN ARTIFICIAL (CORREGIDO)
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
@@ -381,6 +370,10 @@
                 const ctx = canvas.getContext('2d');
                 canvas.width = viewport.width; canvas.height = viewport.height;
                 
+                // CORRECCIÓN MAGISTRAL: Forzar fondo blanco para que las letras no se peguen a un fondo transparente.
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                 extraerContornosConOpenCV(canvas);
             };
@@ -389,9 +382,16 @@
 
         function extraerContornosConOpenCV(canvas) {
             try {
-                let src = cv.imread(canvas); let gray = new cv.Mat(); cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-                let thresh = new cv.Mat(); cv.threshold(gray, thresh, 30, 255, cv.THRESH_BINARY);
-                let contours = new cv.MatVector(); let hierarchy = new cv.Mat();
+                let src = cv.imread(canvas); 
+                let gray = new cv.Mat(); 
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+                
+                // CORRECCIÓN DE ALGORITMO: Invertir imagen y usar OTSU para separar el fondo blanco del texto oscuro.
+                let thresh = new cv.Mat(); 
+                cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
+                
+                let contours = new cv.MatVector(); 
+                let hierarchy = new cv.Mat();
                 cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
@@ -399,18 +399,30 @@
                 let piezacount = 0;
                 
                 for (let i = 0; i < contours.size(); ++i) {
-                    let cnt = contours.get(i); let area = cv.contourArea(cnt);
-                    if (area > 1500) {
+                    let cnt = contours.get(i); 
+                    let area = cv.contourArea(cnt);
+                    
+                    // Límite reducido a 100 para atrapar signos de puntuación y números más pequeños.
+                    if (area > 100) {
                         let rect = cv.boundingRect(cnt);
-                        let tCanvas = document.createElement('canvas'); tCanvas.width = rect.width; tCanvas.height = rect.height;
+                        let tCanvas = document.createElement('canvas'); 
+                        tCanvas.width = rect.width; tCanvas.height = rect.height;
                         let tCtx = tCanvas.getContext('2d');
                         tCtx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
                         
-                        let imgData = tCtx.getImageData(0,0, rect.width, rect.height); let data = imgData.data;
-                        for (let j = 0; j < data.length; j += 4) { if (data[j] < 40 && data[j+1] < 40 && data[j+2] < 40) { data[j+3] = 0; } }
+                        // Borrado de fondo blanco (convertir a transparente)
+                        let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
+                        let data = imgData.data;
+                        for (let j = 0; j < data.length; j += 4) { 
+                            // Si el pixel es blanco o muy claro, lo volvemos transparente
+                            if (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200) { 
+                                data[j+3] = 0; 
+                            } 
+                        }
                         tCtx.putImageData(imgData, 0, 0);
 
-                        const base64 = tCanvas.toDataURL('image/png'); const idPieza = `pieza_${piezacount}`;
+                        const base64 = tCanvas.toDataURL('image/png'); 
+                        const idPieza = `pieza_${piezacount}`;
                         piezasExtraidasTemp.push({ id: idPieza, src: base64, propor: rect.width / rect.height });
 
                         gallery.insertAdjacentHTML('beforeend', `<div class="gallery-item"><img src="${base64}"><input type="text" class="char-mapper" id="map_${idPieza}" maxlength="1" placeholder="?"></div>`);
@@ -420,7 +432,16 @@
                 src.delete(); gray.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
-            } catch (err) { alert("Error en OpenCV: " + err); }
+                
+                if (piezacount === 0) {
+                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron piezas. El PDF podría estar vacío o ser una imagen acoplada sin letras separadas.</div>';
+                }
+
+            } catch (err) { 
+                alert("Error en OpenCV: " + err); 
+                document.getElementById('cv-loader').style.display = 'none'; 
+                document.getElementById('btn-scan').style.display = 'block';
+            }
         }
 
         async function guardarAbecedarioSupabase() {
@@ -447,7 +468,6 @@
                     actualizarSelectorFuentes();
                     selectorFuentesDB.value = nombreFuente;
                     
-                    // Limpiar entorno extractor y mandar a producción automáticamente
                     document.getElementById('font-custom-name').value = "";
                     document.getElementById('pdf-gallery-master').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">Sube otro PDF para crear más fuentes.</div>';
                     switchEnvironment('produccion');
@@ -493,7 +513,6 @@
             svgWorkspace.setAttribute('viewBox', `0 0 ${ancho * PIXELES_POR_CM} ${alto * PIXELES_POR_CM}`);
         }
 
-        // A. CONSTRUCTOR DESDE SUPABASE
         function agregarAColaConstructor() {
             const nombreFuenteSelect = selectorFuentesDB.value;
             if (!nombreFuenteSelect) { alert("Selecciona una fuente de Supabase."); return; }
@@ -529,7 +548,6 @@
             actualizarVistaCola();
         }
 
-        // B. TEXTO Y PNG GENÉRICOS
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if(!file)return; const reader = new FileReader();
             reader.onload = function(ev) { try{ fuenteActual = opentype.parse(ev.target.result); }catch(e){} }; reader.readAsArrayBuffer(file);
@@ -563,7 +581,6 @@
             colaProduccion.push({ tipo: 'imagen', nombreMostrar: `[IMG] ${nombreImgSuela.substring(0,8)}`, src: imagenUnicaBase64, ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx, cantidad: cantidad }); actualizarVistaCola();
         }
 
-        // UTILIDADES DE LA COLA
         function actualizarVistaCola() {
             if (colaProduccion.length === 0) { queueList.innerHTML = '<div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>'; return; }
             queueList.innerHTML = '';
@@ -575,9 +592,6 @@
         function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
         function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
-        // ==========================================
-        // MOTOR TETRIS Y RENDER
-        // ==========================================
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
             pack(w, h, rotatable) {
