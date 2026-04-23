@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gang Sheet Studio - IA OCR & Silueteado Quirúrgico (Corregido)</title>
+    <title>Gang Sheet Studio - IA OCR Blindada & Supabase</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -343,7 +343,7 @@
         }
 
         // ==========================================
-        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA EXACTA
+        // ENTORNO 1: OCR TESSERACT Y MÁSCARAS DE SILUETA
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
@@ -445,7 +445,7 @@
 
                         // PREPARACIÓN DE IMAGEN PARA LA IA (Fondo blanco brillante para no confundirla)
                         let ocrCanvas = document.createElement('canvas');
-                        let pad = 20; // Padding para que la IA pueda "respirar" alrededor de la letra
+                        let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
                         ocrCanvas.height = rect.height + (pad * 2);
                         let ocrCtx = ocrCanvas.getContext('2d');
@@ -453,7 +453,6 @@
                         ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
                         ocrCtx.drawImage(tCanvas, pad, pad);
                         
-                        // Mandamos a la IA la versión blanca optimizada
                         ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
                         piezacount++;
                     }
@@ -471,7 +470,7 @@
             }
         }
 
-        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR EN COLA (TESSERACT)
+        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR (TESSERACT SEGURO V4)
         function ejecutarOCRAsincrono(base64Image, idPieza) {
             ocrQueue.push({ base64Image, idPieza });
             procesarFilaOCR();
@@ -483,14 +482,22 @@
 
             if (!tesseractWorker) {
                 try {
-                    tesseractWorker = await Tesseract.createWorker('eng');
-                    // CONFIGURACIÓN ESTRICTA: Modo Caracter Único y Solo Caracteres Válidos
+                    // Secuencia de arranque industrial segura
+                    tesseractWorker = await Tesseract.createWorker();
+                    await tesseractWorker.loadLanguage('eng');
+                    await tesseractWorker.initialize('eng');
                     await tesseractWorker.setParameters({
-                        tessedit_pageseg_mode: '10', 
+                        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR, 
                         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ.,-'
                     });
                 } catch(e) {
                     console.error("Error cargando Tesseract:", e);
+                    // Liberar cola si falla el inicio
+                    ocrQueue.forEach(({idPieza}) => {
+                        let el = document.getElementById(`map_${idPieza}`);
+                        if(el) { el.classList.remove('ocr-loading'); el.classList.add('ocr-doubt'); el.placeholder = "?"; }
+                    });
+                    ocrQueue = [];
                     isOcrRunning = false;
                     return;
                 }
@@ -604,7 +611,9 @@
             const espaciadoPx = parseInt(document.getElementById('letter-spacing').value) * (altoCm/10); 
 
             if (!palabra) return;
-            const altoPx = altoCm * PIXELES_POR_CM; let currentX = 0; let caracteresArmados = [];
+
+            const altoPx = altoCm * PIXELES_POR_CM;
+            let currentX = 0; let caracteresArmados = [];
 
             for (let i = 0; i < palabra.length; i++) {
                 let char = palabra[i];
@@ -622,7 +631,8 @@
                 tipo: 'palabra_armada', nombreMostrar: `[${nombreFuenteSelect}] "${palabra}"`,
                 letras: caracteresArmados, ancho: currentX - espaciadoPx, alto: altoPx, 
                 offsetX: 0, offsetY: 0, area: (currentX - espaciadoPx) * altoPx, cantidad: cantidad
-            }); actualizarVistaCola();
+            });
+            actualizarVistaCola();
         }
 
         document.getElementById('font-upload').addEventListener('change', function(e) {
@@ -746,7 +756,6 @@
             });
         }
 
-        // DRAG AND DROP
         let elementoSeleccionado = null; let offset = { x: 0, y: 0 };
         function obtenerPosicionEvent(evt) { let cx = evt.touches ? evt.touches[0].clientX : evt.clientX; let cy = evt.touches ? evt.touches[0].clientY : evt.clientY; let CTM = svgWorkspace.getScreenCTM(); return { x: (cx - CTM.e) / CTM.a, y: (cy - CTM.f) / CTM.d }; }
         svgWorkspace.addEventListener('mousedown', (e) => { let target = e.target; while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') target = target.parentNode; if (target && target.classList?.contains('draggable-piece')) { elementoSeleccionado = target; let pos = obtenerPosicionEvent(e); offset.x = pos.x - parseFloat(target.getAttribute('data-x')); offset.y = pos.y - parseFloat(target.getAttribute('data-y')); } });
@@ -754,7 +763,6 @@
         svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; }); svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
         svgWorkspace.addEventListener('touchstart', (e) => { }, {passive: false});
 
-        // EXPORTACIONES
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
         function descargarPDF() { document.getElementById('loader').style.display = 'block'; setTimeout(async () => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: anchoCm > altoCm ? 'landscape' : 'portrait', unit: 'cm', format: [anchoCm, altoCm] }); await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm }); pdf.save(`GangSheet_Produccion.pdf`); document.getElementById('loader').style.display = 'none'; }, 50); }
         
