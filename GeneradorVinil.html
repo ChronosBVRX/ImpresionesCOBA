@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Gang Sheets - Nivel Industrial Vectorial</title>
+    <title>Generador Gang Sheets - Industrial (Vectores e Imágenes)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -17,10 +17,11 @@
             --secondary-color: #10b981; 
             --secondary-hover: #059669;
             --danger-color: #ef4444; 
-            --bg-color: #0f172a; /* Fondo aún más oscuro para contrastar con la "hoja" */
+            --bg-color: #0f172a; 
             --panel-bg: #1e293b;
             --text-color: #f8fafc;
             --border-color: #334155;
+            --highlight: #3b82f6;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -50,7 +51,7 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 400px;
+            width: 420px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -70,7 +71,7 @@
         .form-group { display: flex; flex-direction: column; gap: 5px; }
         .form-group label { font-weight: 600; font-size: 0.85rem; color: #94a3b8; }
 
-        .form-group input[type="text"], .form-group input[type="number"] {
+        .form-group input[type="text"], .form-group input[type="number"], .form-group select {
             padding: 10px; background-color: #0f172a; color: white;
             border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; width: 100%;
         }
@@ -90,6 +91,23 @@
             border-radius: 6px; border: 1px solid var(--border-color);
         }
         .dimensions-container .form-group { flex: 1; min-width: 0; }
+
+        /* Pestañas de Tipo de Elemento */
+        .type-selector {
+            display: flex;
+            background-color: #0f172a;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
+        }
+        .type-btn {
+            flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: bold;
+            background: transparent; color: #94a3b8; border: none; transition: 0.3s;
+        }
+        .type-btn.active { background-color: var(--highlight); color: white; }
+
+        .hidden-panel { display: none !important; }
 
         /* Botones */
         .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-exportar-svg {
@@ -152,9 +170,8 @@
         .canvas-header p { margin: 0; color: #94a3b8; font-size: 0.9rem; }
         .status-message { color: var(--secondary-color); font-weight: bold; font-size: 0.9rem; display: block; margin-top: 5px; }
 
-        /* NUEVO DISEÑO DEL LIENZO: Bordes claros y aspecto de hoja real */
+        /* Lienzo visualmente exacto */
         .canvas-container {
-            /* Patrón de transparencia */
             background-image: 
                 linear-gradient(45deg, #1e293b 25%, transparent 25%), 
                 linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
@@ -163,60 +180,33 @@
             background-size: 20px 20px; 
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px; 
             background-color: #0f172a; 
-            
-            /* Borde exacto del material */
             border: 3px dashed var(--primary-color);
             border-radius: 4px;
-            
-            /* Sombra profunda para que resalte como una hoja en una mesa oscura */
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-            
-            display: flex; 
-            position: relative; 
-            height: 80vh; 
-            max-height: 800px; 
-            max-width: 100%; /* Evita que se salga de la pantalla en monitores chicos */
-            aspect-ratio: 57 / 112; 
-            overflow: hidden; 
-            touch-action: none; 
-            margin: 0 auto; /* Centrar la hoja */
+            display: flex; position: relative; height: 80vh; max-height: 800px; max-width: 100%;
+            aspect-ratio: 57 / 112; overflow: hidden; touch-action: none; margin: 0 auto;
         }
 
-        /* Etiqueta visual para recordarte que este es el borde de impresión */
         .canvas-container::after {
-            content: "ÁREA DE IMPRESIÓN";
-            position: absolute;
-            bottom: 5px;
-            right: 8px;
-            color: var(--primary-color);
-            font-size: 0.7rem;
-            font-weight: bold;
-            letter-spacing: 2px;
-            opacity: 0.5;
-            pointer-events: none; /* Para que no estorbe si arrastras letras ahí */
+            content: "ÁREA DE IMPRESIÓN"; position: absolute; bottom: 5px; right: 8px;
+            color: var(--primary-color); font-size: 0.7rem; font-weight: bold; letter-spacing: 2px; opacity: 0.5; pointer-events: none;
         }
 
         #svg-workspace { width: 100%; height: 100%; display: block; }
 
         .draggable-piece { cursor: grab; user-select: none; touch-action: none; }
         .draggable-piece:active { cursor: grabbing; }
-        .draggable-piece:hover path { opacity: 0.8; }
+        .draggable-piece:hover path, .draggable-piece:hover image { opacity: 0.8; }
 
         #loader { display: none; color: #f59e0b; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
+        
+        .info-text { font-size: 0.8rem; color: #94a3b8; font-style: italic; margin-top: 4px; }
 
         @media (max-width: 1024px) {
             .app-container { flex-direction: column; }
             .controls-panel { width: 100%; }
             .canvas-container { height: auto; width: 100%; max-height: 70vh; }
             .dimensions-container { flex-wrap: wrap; }
-        }
-
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-            .button-row { flex-wrap: wrap; }
-            .btn-clear, .btn-exportar-png, .btn-exportar-pdf { width: 100%; flex: none !important; }
-            .canvas-header { flex-direction: column; align-items: flex-start; text-align: left; }
-            .canvas-header div { text-align: left !important; }
         }
     </style>
 </head>
@@ -238,25 +228,48 @@
 
             <h2>2. Preparar Elementos</h2>
             
-            <div class="form-group">
-                <label>Texto (Número o Nombre):</label>
-                <input type="text" id="texto-input" value="10" placeholder="Ej. 10 o RODRIGUEZ">
+            <div class="type-selector">
+                <button class="type-btn active" id="btn-tab-texto" onclick="cambiarTab('texto')">Escribir Texto</button>
+                <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTab('imagen')">Subir Diseño (PNG/SVG)</button>
             </div>
 
-            <div class="form-group">
-                <label style="color: var(--primary-color);">Cargar Fuente (.ttf / .otf):</label>
-                <input type="file" id="font-upload" accept=".ttf, .otf, .woff">
-                <small id="font-status" style="color: var(--secondary-color); font-weight: bold; margin-top: 5px;">Cargando fuente por defecto (Anton)...</small>
-            </div>
-
-            <div class="dimensions-container">
+            <div id="panel-texto" class="form-group" style="gap: 15px;">
                 <div class="form-group">
-                    <label>Altura FÍSICA (cm):</label>
-                    <input type="number" id="alto-numero-input" value="8" min="1" step="0.5">
+                    <label>Texto (Número o Nombre):</label>
+                    <input type="text" id="texto-input" value="10" placeholder="Ej. 10 o RODRIGUEZ">
+                </div>
+                <div class="dimensions-container">
+                    <div class="form-group" style="flex: 1;">
+                        <label style="color: var(--primary-color);">Cargar Fuente (.ttf/.otf):</label>
+                        <input type="file" id="font-upload" accept=".ttf, .otf, .woff">
+                        <small id="font-status" style="color: var(--secondary-color); font-weight: bold; margin-top: 5px;">Fuente: Anton</small>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Color:</label>
+                    <label>Color de Letra:</label>
                     <input type="color" id="color-input" value="#ffffff">
+                </div>
+            </div>
+
+            <div id="panel-imagen" class="form-group hidden-panel" style="gap: 15px;">
+                <div class="form-group">
+                    <label style="color: var(--primary-color);">Sube tu armado final (PNG sin fondo o SVG):</label>
+                    <input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml">
+                    <div class="info-text">Si tienes un PDF con los números, expórtalos individualmente desde CorelDraw/Illustrator como PNG transparente y súbelos aquí.</div>
+                </div>
+                
+                <div class="form-group" id="image-preview-container" style="display:none; align-items:center; background:#0f172a; padding:10px; border-radius:6px; border:1px solid #334155;">
+                    <img id="image-preview-thumb" src="" style="max-height: 50px; max-width: 100px; margin-right: 15px;">
+                    <div style="font-size: 0.85rem; color: #94a3b8;">
+                        Proporción detectada.<br>Ancho automático: <span id="auto-width-display" style="color:white; font-weight:bold;">0 cm</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dimensions-container" style="margin-top: 10px;">
+                <div class="form-group">
+                    <label>Altura FÍSICA (cm):</label>
+                    <input type="number" id="alto-numero-input" value="8" min="1" step="0.5" oninput="calcularAnchoImagen()">
                 </div>
                 <div class="form-group">
                     <label>¿Cuántos?:</label>
@@ -264,7 +277,7 @@
                 </div>
             </div>
 
-            <button class="btn-add" onclick="agregarACola()">↓ Añadir a la Cola</button>
+            <button class="btn-add" onclick="agregarACola()">↓ Añadir a la Cola de Impresión</button>
 
             <div class="queue-container" id="queue-list">
                 <div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>
@@ -320,23 +333,37 @@
         const statusInfo = document.getElementById('status-info');
         const checkRotacion = document.getElementById('permitir-rotacion');
         const loader = document.getElementById('loader');
-        const fontStatus = document.getElementById('font-status');
-
+        
+        // Elementos Híbridos
+        const altoNumeroInput = document.getElementById('alto-numero-input');
+        let modoActual = 'texto'; // 'texto' o 'imagen'
+        
         let fuenteActual = null;
+        let imagenActualBase64 = null;
+        let proporcionImagen = 1; // Ancho / Alto
+        let nombreImagenActual = "";
+
         let colaProduccion = []; 
         const PIXELES_POR_CM = 100;
 
         // 1. Cargar fuente por defecto
         opentype.load('https://cdn.jsdelivr.net/npm/@fontsource/anton/files/anton-latin-400-normal.woff', function(err, font) {
-            if (!err) {
-                fuenteActual = font;
-                fontStatus.textContent = "Fuente activa: Anton (Por defecto)";
-            } else {
-                fontStatus.textContent = "Sube una fuente para continuar.";
-            }
+            if (!err) fuenteActual = font;
         });
 
-        // 2. Configuración del área
+        // 2. Control de Pestañas
+        function cambiarTab(modo) {
+            modoActual = modo;
+            document.getElementById('btn-tab-texto').classList.remove('active');
+            document.getElementById('btn-tab-imagen').classList.remove('active');
+            document.getElementById('panel-texto').classList.add('hidden-panel');
+            document.getElementById('panel-imagen').classList.add('hidden-panel');
+
+            document.getElementById(`btn-tab-${modo}`).classList.add('active');
+            document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
+        }
+
+        // 3. Configuración del área
         function actualizarLienzo() {
             const anchoPlantillaCm = parseFloat(anchoInput.value) || 57;
             const altoPlantillaCm = parseFloat(altoInput.value) || 112;
@@ -348,7 +375,7 @@
             svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
         }
 
-        // 3. Procesar fuente subida por el usuario
+        // 4A. Procesar Fuente
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -356,62 +383,88 @@
             reader.onload = function(evento) {
                 try {
                     fuenteActual = opentype.parse(evento.target.result);
-                    let displayName = file.name;
-                    if(displayName.length > 25) displayName = displayName.substring(0, 25) + '...';
-                    fontStatus.textContent = "Fuente activa: " + displayName;
-                    fontStatus.style.color = "var(--secondary-color)";
-                } catch(err) {
-                    alert("Error al leer la fuente. Intenta con un archivo .ttf o .otf válido.");
-                }
+                    let n = file.name;
+                    document.getElementById('font-status').textContent = "Fuente activa: " + (n.length > 20 ? n.substring(0,20)+'...' : n);
+                } catch(err) { alert("Error al leer la fuente."); }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // 4. Crear Vector de la Tinta Exacta
-        function crearPiezaVectorial(texto, fontObj, altoDeseadoCm, color) {
-            const altoDeseadoPx = altoDeseadoCm * PIXELES_POR_CM;
-            
-            let pathPrueba = fontObj.getPath(texto, 0, 0, 1000);
-            let cajaPrueba = pathPrueba.getBoundingBox();
-            let altoPrueba = cajaPrueba.y2 - cajaPrueba.y1;
-            
-            let escalaReal = altoDeseadoPx / altoPrueba;
-            let fontSizeExacto = 1000 * escalaReal;
-            
-            let pathFinal = fontObj.getPath(texto, 0, 0, fontSizeExacto);
-            let cajaFinal = pathFinal.getBoundingBox();
-            
-            let offsetX = -cajaFinal.x1;
-            let offsetY = -cajaFinal.y1;
-            
-            let svgPathData = pathFinal.toPathData(2);
-            
-            return {
-                texto: texto,
-                pathData: svgPathData,
-                color: color,
-                ancho: cajaFinal.x2 - cajaFinal.x1,
-                alto: cajaFinal.y2 - cajaFinal.y1,
-                offsetX: offsetX,
-                offsetY: offsetY,
-                area: (cajaFinal.x2 - cajaFinal.x1) * (cajaFinal.y2 - cajaFinal.y1)
+        // 4B. Procesar Imagen (NUEVO)
+        document.getElementById('image-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            nombreImagenActual = file.name;
+            const reader = new FileReader();
+            reader.onload = function(evento) {
+                imagenActualBase64 = evento.target.result;
+                // Averiguar proporciones
+                const img = new Image();
+                img.onload = function() {
+                    proporcionImagen = img.width / img.height;
+                    document.getElementById('image-preview-thumb').src = imagenActualBase64;
+                    document.getElementById('image-preview-container').style.display = 'flex';
+                    calcularAnchoImagen();
+                };
+                img.src = imagenActualBase64;
             };
+            reader.readAsDataURL(file);
+        });
+
+        function calcularAnchoImagen() {
+            if (modoActual === 'imagen' && imagenActualBase64) {
+                const altoCm = parseFloat(altoNumeroInput.value) || 8;
+                const anchoCm = altoCm * proporcionImagen;
+                document.getElementById('auto-width-display').textContent = anchoCm.toFixed(1) + " cm";
+            }
         }
 
-        // 5. Añadir a la cola
+        // 5. Motor Híbrido de Vectores e Imágenes
+        function crearPieza(altoDeseadoCm) {
+            const altoPx = altoDeseadoCm * PIXELES_POR_CM;
+
+            if (modoActual === 'texto') {
+                const texto = document.getElementById('texto-input').value;
+                const color = document.getElementById('color-input').value;
+                if (!texto || !fuenteActual) return null;
+
+                let pathPrueba = fuenteActual.getPath(texto, 0, 0, 1000);
+                let cajaPrueba = pathPrueba.getBoundingBox();
+                let escalaReal = altoPx / (cajaPrueba.y2 - cajaPrueba.y1);
+                
+                let pathFinal = fuenteActual.getPath(texto, 0, 0, 1000 * escalaReal);
+                let cajaFinal = pathFinal.getBoundingBox();
+                
+                return {
+                    tipo: 'vector', nombreMostrar: `"${texto}"`,
+                    pathData: pathFinal.toPathData(2), color: color,
+                    ancho: cajaFinal.x2 - cajaFinal.x1, alto: altoPx,
+                    offsetX: -cajaFinal.x1, offsetY: -cajaFinal.y1,
+                    area: (cajaFinal.x2 - cajaFinal.x1) * altoPx
+                };
+            } 
+            else if (modoActual === 'imagen') {
+                if (!imagenActualBase64) return null;
+                const anchoPx = altoPx * proporcionImagen;
+                return {
+                    tipo: 'imagen', nombreMostrar: `[IMG] ${nombreImagenActual.substring(0,10)}...`,
+                    src: imagenActualBase64,
+                    ancho: anchoPx, alto: altoPx,
+                    offsetX: 0, offsetY: 0,
+                    area: anchoPx * altoPx
+                };
+            }
+        }
+
         function agregarACola() {
-            if (!fuenteActual) { alert("Espera a que cargue la fuente o sube la tuya."); return; }
-            const texto = document.getElementById('texto-input').value;
-            const altoTextoCm = parseFloat(document.getElementById('alto-numero-input').value);
-            const colorTexto = document.getElementById('color-input').value;
+            const altoTextoCm = parseFloat(altoNumeroInput.value);
             const cantidad = parseInt(document.getElementById('cantidad-input').value) || 1;
 
-            if (!texto) { alert("Escribe un texto o número."); return; }
+            const pieza = crearPieza(altoTextoCm);
+            if (!pieza) { alert("Llena los datos o sube un archivo primero."); return; }
 
-            const piezaVectorial = crearPiezaVectorial(texto, fuenteActual, altoTextoCm, colorTexto);
-            piezaVectorial.cantidad = cantidad;
-            colaProduccion.push(piezaVectorial);
-            
+            pieza.cantidad = cantidad;
+            colaProduccion.push(pieza);
             actualizarVistaCola();
         }
 
@@ -423,10 +476,11 @@
             queueList.innerHTML = '';
             colaProduccion.forEach((item, index) => {
                 let anchoCm = (item.ancho / PIXELES_POR_CM).toFixed(1);
+                let altoCm = (item.alto / PIXELES_POR_CM).toFixed(1);
                 const div = document.createElement('div');
                 div.className = 'queue-item';
                 div.innerHTML = `
-                    <span><b>${item.cantidad}x</b> "${item.texto}" (${anchoCm}cm x ${item.alto / PIXELES_POR_CM}cm)</span>
+                    <span><b>${item.cantidad}x</b> ${item.nombreMostrar} (${anchoCm}x${altoCm}cm)</span>
                     <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px;" onclick="eliminarDeCola(${index})">✕</button>
                 `;
                 queueList.appendChild(div);
@@ -435,13 +489,9 @@
 
         function eliminarDeCola(index) { colaProduccion.splice(index, 1); actualizarVistaCola(); }
         function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
-        function limpiarLienzo() {
-            textoContainer.innerHTML = '';
-            statusInfo.textContent = 'Lienzo en blanco.';
-            statusInfo.style.color = '#94a3b8';
-        }
+        function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
-        // 6. MOTOR DE EMPAQUETADO (GUILLOTINE PACKER)
+        // 6. MOTOR DE EMPAQUETADO TETRIS
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
             pack(w, h, rotatable) {
@@ -523,12 +573,22 @@
             const gRotacion = document.createElementNS("http://www.w3.org/2000/svg", "g");
             if (rotado) gRotacion.setAttribute('transform', `translate(0, ${pieza.ancho}) rotate(-90)`);
 
-            const pathNode = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            pathNode.setAttribute('d', pieza.pathData);
-            pathNode.setAttribute('fill', pieza.color);
-            pathNode.setAttribute('transform', `translate(${pieza.offsetX}, ${pieza.offsetY})`);
+            if (pieza.tipo === 'vector') {
+                const pathNode = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                pathNode.setAttribute('d', pieza.pathData);
+                pathNode.setAttribute('fill', pieza.color);
+                pathNode.setAttribute('transform', `translate(${pieza.offsetX}, ${pieza.offsetY})`);
+                gRotacion.appendChild(pathNode);
+            } 
+            else if (pieza.tipo === 'imagen') {
+                const imgNode = document.createElementNS("http://www.w3.org/2000/svg", "image");
+                imgNode.setAttribute('href', pieza.src);
+                imgNode.setAttribute('width', pieza.ancho);
+                imgNode.setAttribute('height', pieza.alto);
+                imgNode.setAttribute('preserveAspectRatio', 'none');
+                gRotacion.appendChild(imgNode);
+            }
 
-            gRotacion.appendChild(pathNode);
             gMaster.appendChild(gRotacion);
             textoContainer.appendChild(gMaster);
 
