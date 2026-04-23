@@ -87,7 +87,6 @@
         .gallery-item img { max-height: 80px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; padding: 5px; }
         .char-mapper { width: 100% !important; text-align: center; font-weight: bold; font-size: 1.2rem !important; color: var(--primary-color) !important; border-color: var(--highlight) !important; }
         
-        /* Botón de eliminar pieza individual en galería */
         .btn-delete-piece { position: absolute; top: -8px; right: -8px; background-color: var(--danger-color); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .btn-delete-piece:hover { background-color: #b91c1c; transform: scale(1.1); }
 
@@ -126,13 +125,7 @@
 
         #loader, #cv-loader { display: none; color: #f59e0b; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
         #cv-status { color: #ef4444; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
-        .espaciado-letras { font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
         .btn-delete-font { background-color: transparent; color: var(--danger-color); border: none; font-size: 0.8rem; cursor: pointer; text-decoration: underline; margin-top: 5px; display: block; text-align: right; }
-
-        /* Estilo para los rangos (Sliders) */
-        input[type=range] { -webkit-appearance: none; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--highlight); cursor: pointer; margin-top: -6px; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
 
         @media (max-width: 1024px) { .app-container { flex-direction: column; } .controls-panel { width: 100%; } .canvas-container { height: auto; width: 100%; max-height: 70vh; } }
     </style>
@@ -228,10 +221,6 @@
                         <label style="color: var(--highlight);">Escribe la palabra (Usa tu abecedario):</label>
                         <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
                     </div>
-                    <div class="espaciado-letras">
-                        <label>Separación entre letras:</label>
-                        <input type="range" id="letter-spacing" min="0" max="50" value="10" style="width: 50%;">
-                    </div>
                     <div class="dimensions-container" style="margin-top: 10px;">
                         <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-const" value="22" min="1" step="0.5"></div>
                         <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-const" value="1" min="1"></div>
@@ -299,7 +288,7 @@
 
     <script>
         // ==========================================
-        // CONTROL DE ENTORNOS (LAS DOS APLICACIONES)
+        // CONTROL DE ENTORNOS
         // ==========================================
         function switchEnvironment(env) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -333,7 +322,7 @@
                 actualizarSelectorFuentes();
             } catch (err) {
                 console.error("Error Supabase:", err.message);
-                selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube.</option>';
+                selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube. (Revisa SQL)</option>';
             }
         }
 
@@ -362,7 +351,7 @@
         }
 
         // ==========================================
-        // ENTORNO 1: EXTRACTOR DE PDF Y VISIÓN ARTIFICIAL (CORREGIDO Y EVOLUCIONADO)
+        // ENTORNO 1: EXTRACTOR DE PDF Y VISIÓN ARTIFICIAL BLINDADA
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
@@ -385,7 +374,7 @@
                 const ctx = canvas.getContext('2d');
                 canvas.width = viewport.width; canvas.height = viewport.height;
                 
-                // Forzar fondo blanco para evitar errores de contorno
+                // Forzar fondo blanco
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
@@ -396,25 +385,25 @@
         }
 
         function extraerContornosConOpenCV(canvas) {
+            // Variables nativas de OpenCV inicializadas afuera para asegurar su limpieza
+            let src, gray, thresh, M, mergedThresh, contours, hierarchy;
+            
             try {
-                let src = cv.imread(canvas); 
-                let gray = new cv.Mat(); 
+                src = cv.imread(canvas); 
+                gray = new cv.Mat(); 
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
-                // Invertir imagen y usar OTSU
-                let thresh = new cv.Mat(); 
+                thresh = new cv.Mat(); 
                 cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
                 
-                // === NUEVO: ALGORITMO DE DILATACIÓN (FUSIÓN DE TINTA) ===
+                // BLOQUE SEGURO: DILATACIÓN
                 let mergeDistance = parseInt(document.getElementById('merge-distance').value) || 12;
-                let M = cv.Mat.ones(mergeDistance, mergeDistance, cv.CV_8U);
-                let mergedThresh = new cv.Mat();
-                // Engordamos la tinta blanca en la máscara negra para conectar acentos y símbolos
-                cv.dilate(thresh, mergedThresh, M, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+                M = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(mergeDistance, mergeDistance));
+                mergedThresh = new cv.Mat();
+                cv.dilate(thresh, mergedThresh, M, new cv.Point(-1, -1), 1);
 
-                let contours = new cv.MatVector(); 
-                let hierarchy = new cv.Mat();
-                // Buscamos los contornos en la imagen engordada
+                contours = new cv.MatVector(); 
+                hierarchy = new cv.Mat();
                 cv.findContours(mergedThresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
@@ -425,17 +414,14 @@
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
                     
-                    // Si el área agrupada es mayor a 1500 (Ignora basura microscópica)
-                    if (area > 1500) {
+                    if (area > 100) {
                         let rect = cv.boundingRect(cnt);
                         
-                        // Recortamos desde el Canvas Original (Sin engordar, para que la calidad sea perfecta)
                         let tCanvas = document.createElement('canvas'); 
                         tCanvas.width = rect.width; tCanvas.height = rect.height;
                         let tCtx = tCanvas.getContext('2d');
                         tCtx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
                         
-                        // Borrado de fondo blanco
                         let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
                         let data = imgData.data;
                         for (let j = 0; j < data.length; j += 4) { 
@@ -447,7 +433,6 @@
                         const idPieza = `pieza_${piezacount}`;
                         piezasExtraidasTemp.push({ id: idPieza, src: base64, propor: rect.width / rect.height });
 
-                        // NUEVO: Botón de eliminar individual
                         gallery.insertAdjacentHTML('beforeend', `
                             <div class="gallery-item" id="card_${idPieza}">
                                 <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')" title="Descartar imagen">🗑️</button>
@@ -458,25 +443,31 @@
                         piezacount++;
                     }
                 }
-                // Liberar memoria pesada de C++
-                src.delete(); gray.delete(); thresh.delete(); mergedThresh.delete(); M.delete(); contours.delete(); hierarchy.delete();
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
                 
                 if (piezacount === 0) {
-                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron piezas útiles. Intenta subir o bajar la Fusión de Tinta.</div>';
+                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se detectaron piezas útiles. Ajusta la fusión de tinta.</div>';
                 }
 
             } catch (err) { 
-                alert("Error en OpenCV: " + err); 
+                let msg = typeof err === 'number' ? cv.exceptionFromPtr(err).msg : err;
+                alert("Error C++ en OpenCV: " + msg + "\nIntenta recargar la página si el problema persiste."); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
+            } finally {
+                // LIMPIEZA ABSOLUTA PASE LO QUE PASE (Memory Leak Prevent)
+                if(src) src.delete(); 
+                if(gray) gray.delete(); 
+                if(thresh) thresh.delete(); 
+                if(mergedThresh) mergedThresh.delete(); 
+                if(M) M.delete(); 
+                if(contours) contours.delete(); 
+                if(hierarchy) hierarchy.delete();
             }
         }
 
-        // Función para descartar basura de la galería
         function eliminarPiezaGaleria(idPieza) {
             document.getElementById(`card_${idPieza}`).remove();
-            // Lo quitamos del array temporal para que no intente subirlo
             piezasExtraidasTemp = piezasExtraidasTemp.filter(p => p.id !== idPieza);
         }
 
@@ -557,11 +548,14 @@
             const palabra = document.getElementById('palabra-construida').value.toUpperCase();
             const altoCm = parseFloat(document.getElementById('alto-numero-input-const').value);
             const cantidad = parseInt(document.getElementById('cantidad-input-const').value) || 1;
-            const espaciadoPx = parseInt(document.getElementById('letter-spacing').value) * (altoCm/10); 
-
+            
             if (!palabra) return;
 
             const altoPx = altoCm * PIXELES_POR_CM;
+            // Espaciado ajustado dinámicamente: un valor estándar de 10 equivale al 10% del alto
+            const espacioRango = document.getElementById('letter-spacing') ? parseFloat(document.getElementById('letter-spacing').value) : 10;
+            const espaciadoPx = (espacioRango / 100) * altoPx;
+
             let currentX = 0; let caracteresArmados = [];
 
             for (let i = 0; i < palabra.length; i++) {
@@ -714,7 +708,7 @@
         svgWorkspace.addEventListener('mousedown', (e) => { let target = e.target; while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') target = target.parentNode; if (target && target.classList?.contains('draggable-piece')) { elementoSeleccionado = target; let pos = obtenerPosicionEvent(e); offset.x = pos.x - parseFloat(target.getAttribute('data-x')); offset.y = pos.y - parseFloat(target.getAttribute('data-y')); } });
         svgWorkspace.addEventListener('mousemove', (e) => { if (elementoSeleccionado) { e.preventDefault(); let pos = obtenerPosicionEvent(e); let newX = pos.x - offset.x, newY = pos.y - offset.y; elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`); elementoSeleccionado.setAttribute('data-x', newX); elementoSeleccionado.setAttribute('data-y', newY); } });
         svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; }); svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
-        svgWorkspace.addEventListener('touchstart', (e) => { /* Activa arriba */ }, {passive: false});
+        svgWorkspace.addEventListener('touchstart', (e) => { /* Activa en JS */ }, {passive: false});
 
         // EXPORTACIONES
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
