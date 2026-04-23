@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Gang Sheets - Industrial (Vectores e Imágenes)</title>
+    <title>Generador Gang Sheets - Industrial PRO (Con Extractor PDF)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.3/svg2pdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <style>
         /* Diseño Visual, Intuitivo y Responsivo */
@@ -94,20 +95,40 @@
 
         /* Pestañas de Tipo de Elemento */
         .type-selector {
-            display: flex;
-            background-color: #0f172a;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            margin-bottom: 10px;
+            display: flex; background-color: #0f172a; border-radius: 8px;
+            overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px;
         }
         .type-btn {
-            flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: bold;
+            flex: 1; padding: 10px 5px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.85rem;
             background: transparent; color: #94a3b8; border: none; transition: 0.3s;
         }
         .type-btn.active { background-color: var(--highlight); color: white; }
 
         .hidden-panel { display: none !important; }
+
+        /* Extractor PDF Estilos */
+        .pdf-extractor-container {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: auto; /* Permite hacer scroll si el PDF es muy grande */
+            cursor: crosshair;
+        }
+        #pdf-canvas {
+            display: block;
+            /* El tamaño lo define pdf.js, nosotros solo lo contenemos */
+        }
+        /* El cuadrito rojo de recorte */
+        #crop-box {
+            position: absolute;
+            border: 2px solid var(--danger-color);
+            background-color: rgba(239, 68, 68, 0.2);
+            pointer-events: none; /* Deja que los clics pasen al canvas */
+            display: none;
+        }
 
         /* Botones */
         .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-exportar-svg {
@@ -230,7 +251,8 @@
             
             <div class="type-selector">
                 <button class="type-btn active" id="btn-tab-texto" onclick="cambiarTab('texto')">Escribir Texto</button>
-                <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTab('imagen')">Subir Diseño (PNG/SVG)</button>
+                <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTab('imagen')">Subir PNG</button>
+                <button class="type-btn" id="btn-tab-pdf" onclick="cambiarTab('pdf')">Cortar PDF</button>
             </div>
 
             <div id="panel-texto" class="form-group" style="gap: 15px;">
@@ -253,26 +275,39 @@
 
             <div id="panel-imagen" class="form-group hidden-panel" style="gap: 15px;">
                 <div class="form-group">
-                    <label style="color: var(--primary-color);">Sube tu armado final (PNG sin fondo o SVG):</label>
+                    <label style="color: var(--primary-color);">Sube un diseño ya recortado:</label>
                     <input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml">
-                    <div class="info-text">Si tienes un PDF con los números, expórtalos individualmente desde CorelDraw/Illustrator como PNG transparente y súbelos aquí.</div>
                 </div>
-                
                 <div class="form-group" id="image-preview-container" style="display:none; align-items:center; background:#0f172a; padding:10px; border-radius:6px; border:1px solid #334155;">
                     <img id="image-preview-thumb" src="" style="max-height: 50px; max-width: 100px; margin-right: 15px;">
                     <div style="font-size: 0.85rem; color: #94a3b8;">
-                        Proporción detectada.<br>Ancho automático: <span id="auto-width-display" style="color:white; font-weight:bold;">0 cm</span>
+                        Ancho auto: <span id="auto-width-display" style="color:white; font-weight:bold;">0 cm</span>
                     </div>
+                </div>
+            </div>
+
+            <div id="panel-pdf" class="form-group hidden-panel" style="gap: 15px;">
+                <div class="form-group">
+                    <label style="color: var(--danger-color);">1. Sube la plantilla PDF de tu cliente:</label>
+                    <input type="file" id="pdf-import-upload" accept="application/pdf">
+                </div>
+                <div class="form-group">
+                    <label>2. Dibuja un cuadro rojo sobre el número a extraer:</label>
+                    <div class="pdf-extractor-container" id="pdf-extractor-container">
+                        <canvas id="pdf-canvas"></canvas>
+                        <div id="crop-box"></div>
+                    </div>
+                    <div class="info-text">El fondo negro se volverá transparente automáticamente.</div>
                 </div>
             </div>
 
             <div class="dimensions-container" style="margin-top: 10px;">
                 <div class="form-group">
-                    <label>Altura FÍSICA (cm):</label>
-                    <input type="number" id="alto-numero-input" value="8" min="1" step="0.5" oninput="calcularAnchoImagen()">
+                    <label>Altura FÍSICA final (cm):</label>
+                    <input type="number" id="alto-numero-input" value="22" min="1" step="0.5" oninput="calcularAnchoImagen()">
                 </div>
                 <div class="form-group">
-                    <label>¿Cuántos?:</label>
+                    <label>¿Cuántos quieres?:</label>
                     <input type="number" id="cantidad-input" value="1" min="1" step="1" style="background-color: #0f172a; border-color: var(--secondary-color);">
                 </div>
             </div>
@@ -296,8 +331,8 @@
                 <button class="btn-exportar-png" style="flex: 1;" onclick="descargarPNG()">💾 PNG</button>
                 <button class="btn-exportar-pdf" style="flex: 1;" onclick="descargarPDF()">📄 PDF</button>
             </div>
-            <div id="loader">Procesando archivo pesado, por favor espera... ⏳</div>
-            <button class="btn-exportar-svg" style="margin-top: 10px;" onclick="descargarSVG()">💾 Guardar Vector Original (SVG)</button>
+            <div id="loader">Procesando archivo pesado... ⏳</div>
+            <button class="btn-exportar-svg" style="margin-top: 10px;" onclick="descargarSVG()">💾 Guardar Vector (SVG)</button>
         </div>
 
         <div class="preview-panel">
@@ -323,6 +358,9 @@
     </div>
 
     <script>
+        // Inicializar Worker de PDF.js (Obligatorio para que lea PDFs)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
         const anchoInput = document.getElementById('ancho-input');
         const altoInput = document.getElementById('alto-input');
         const svgWorkspace = document.getElementById('svg-workspace');
@@ -334,30 +372,41 @@
         const checkRotacion = document.getElementById('permitir-rotacion');
         const loader = document.getElementById('loader');
         
-        // Elementos Híbridos
         const altoNumeroInput = document.getElementById('alto-numero-input');
-        let modoActual = 'texto'; // 'texto' o 'imagen'
+        let modoActual = 'texto'; 
         
         let fuenteActual = null;
         let imagenActualBase64 = null;
-        let proporcionImagen = 1; // Ancho / Alto
-        let nombreImagenActual = "";
+        let proporcionImagen = 1; 
+        let nombrePiezaActual = "";
 
         let colaProduccion = []; 
         const PIXELES_POR_CM = 100;
+
+        // Variables para la guillotina de PDF
+        let pdfCanvas = document.getElementById('pdf-canvas');
+        let pdfCtx = pdfCanvas.getContext('2d');
+        let isCropping = false;
+        let cropStartX = 0, cropStartY = 0;
+        let cropRect = { x: 0, y: 0, w: 0, h: 0 };
+        const cropBox = document.getElementById('crop-box');
+        const pdfContainer = document.getElementById('pdf-extractor-container');
 
         // 1. Cargar fuente por defecto
         opentype.load('https://cdn.jsdelivr.net/npm/@fontsource/anton/files/anton-latin-400-normal.woff', function(err, font) {
             if (!err) fuenteActual = font;
         });
 
-        // 2. Control de Pestañas
+        // 2. Pestañas
         function cambiarTab(modo) {
             modoActual = modo;
             document.getElementById('btn-tab-texto').classList.remove('active');
             document.getElementById('btn-tab-imagen').classList.remove('active');
+            document.getElementById('btn-tab-pdf').classList.remove('active');
+            
             document.getElementById('panel-texto').classList.add('hidden-panel');
             document.getElementById('panel-imagen').classList.add('hidden-panel');
+            document.getElementById('panel-pdf').classList.add('hidden-panel');
 
             document.getElementById(`btn-tab-${modo}`).classList.add('active');
             document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
@@ -375,7 +424,8 @@
             svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
         }
 
-        // 4A. Procesar Fuente
+        // 4. Procesos de Carga
+        // 4A. Fuente
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -390,11 +440,11 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // 4B. Procesar Imagen
+        // 4B. Imagen
         document.getElementById('image-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            nombreImagenActual = file.name;
+            nombrePiezaActual = file.name;
             const reader = new FileReader();
             reader.onload = function(evento) {
                 imagenActualBase64 = evento.target.result;
@@ -410,15 +460,78 @@
             reader.readAsDataURL(file);
         });
 
+        // 4C. PDF (Guillotina Virtual)
+        document.getElementById('pdf-import-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file || file.type !== "application/pdf") { alert("Por favor sube un archivo PDF válido."); return; }
+            
+            const reader = new FileReader();
+            reader.onload = function(evento) {
+                const typedarray = new Uint8Array(evento.target.result);
+                
+                // Usar pdf.js para renderizar la página 1
+                pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                    pdf.getPage(1).then(page => {
+                        // Escala 3 para que tenga muy alta resolución al recortarlo
+                        const scale = 3.0;
+                        const viewport = page.getViewport({scale: scale});
+                        
+                        pdfCanvas.width = viewport.width;
+                        pdfCanvas.height = viewport.height;
+                        
+                        const renderContext = { canvasContext: pdfCtx, viewport: viewport };
+                        page.render(renderContext);
+                    });
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Lógica para dibujar el cuadro de recorte sobre el PDF
+        pdfContainer.addEventListener('mousedown', (e) => {
+            if (modoActual !== 'pdf') return;
+            isCropping = true;
+            // Coordenadas relativas al contenedor
+            const rect = pdfContainer.getBoundingClientRect();
+            cropStartX = e.clientX - rect.left + pdfContainer.scrollLeft;
+            cropStartY = e.clientY - rect.top + pdfContainer.scrollTop;
+            
+            cropBox.style.left = cropStartX + 'px';
+            cropBox.style.top = cropStartY + 'px';
+            cropBox.style.width = '0px';
+            cropBox.style.height = '0px';
+            cropBox.style.display = 'block';
+        });
+
+        pdfContainer.addEventListener('mousemove', (e) => {
+            if (!isCropping) return;
+            const rect = pdfContainer.getBoundingClientRect();
+            let currentX = e.clientX - rect.left + pdfContainer.scrollLeft;
+            let currentY = e.clientY - rect.top + pdfContainer.scrollTop;
+            
+            cropRect.x = Math.min(cropStartX, currentX);
+            cropRect.y = Math.min(cropStartY, currentY);
+            cropRect.w = Math.abs(currentX - cropStartX);
+            cropRect.h = Math.abs(currentY - cropStartY);
+            
+            cropBox.style.left = cropRect.x + 'px';
+            cropBox.style.top = cropRect.y + 'px';
+            cropBox.style.width = cropRect.w + 'px';
+            cropBox.style.height = cropRect.h + 'px';
+        });
+
+        pdfContainer.addEventListener('mouseup', () => { isCropping = false; });
+        pdfContainer.addEventListener('mouseleave', () => { isCropping = false; });
+
         function calcularAnchoImagen() {
-            if (modoActual === 'imagen' && imagenActualBase64) {
+            if ((modoActual === 'imagen' && imagenActualBase64) || modoActual === 'pdf') {
                 const altoCm = parseFloat(altoNumeroInput.value) || 8;
                 const anchoCm = altoCm * proporcionImagen;
                 document.getElementById('auto-width-display').textContent = anchoCm.toFixed(1) + " cm";
             }
         }
 
-        // 5. Motor Híbrido de Vectores e Imágenes
+        // 5. Motor de Creación de Piezas
         function crearPieza(altoDeseadoCm) {
             const altoPx = altoDeseadoCm * PIXELES_POR_CM;
 
@@ -446,11 +559,47 @@
                 if (!imagenActualBase64) return null;
                 const anchoPx = altoPx * proporcionImagen;
                 return {
-                    tipo: 'imagen', nombreMostrar: `[IMG] ${nombreImagenActual.substring(0,10)}...`,
+                    tipo: 'imagen', nombreMostrar: `[IMG] ${nombrePiezaActual.substring(0,10)}...`,
                     src: imagenActualBase64,
-                    ancho: anchoPx, alto: altoPx,
-                    offsetX: 0, offsetY: 0,
-                    area: anchoPx * altoPx
+                    ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx
+                };
+            }
+            else if (modoActual === 'pdf') {
+                if (cropRect.w === 0 || cropRect.h === 0) {
+                    alert("Dibuja un cuadro rojo sobre el número que quieres extraer del PDF.");
+                    return null;
+                }
+                
+                // Recortar la parte del canvas seleccionada
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = cropRect.w;
+                tempCanvas.height = cropRect.h;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Dibujamos solo el recorte
+                tempCtx.drawImage(pdfCanvas, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
+                
+                // Truco Industrial: Quitar el fondo oscuro/negro para hacerlo transparente
+                // Porque el PDF suele renderizarse con fondo. Si el color de letra es blanco y fondo negro...
+                const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imgData.data;
+                // Asumimos que los colores muy oscuros (negro) son el fondo de tu PDF y los hacemos transparentes
+                for (let i = 0; i < data.length; i += 4) {
+                    let r = data[i], g = data[i+1], b = data[i+2];
+                    if (r < 30 && g < 30 && b < 30) {
+                        data[i+3] = 0; // Transparencia (Alpha = 0)
+                    }
+                }
+                tempCtx.putImageData(imgData, 0, 0);
+
+                const extractedBase64 = tempCanvas.toDataURL("image/png");
+                proporcionImagen = cropRect.w / cropRect.h;
+                const anchoPx = altoPx * proporcionImagen;
+
+                return {
+                    tipo: 'imagen', nombreMostrar: `[Recorte PDF]`,
+                    src: extractedBase64,
+                    ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx
                 };
             }
         }
@@ -460,7 +609,7 @@
             const cantidad = parseInt(document.getElementById('cantidad-input').value) || 1;
 
             const pieza = crearPieza(altoTextoCm);
-            if (!pieza) { alert("Llena los datos o sube un archivo primero."); return; }
+            if (!pieza) return;
 
             pieza.cantidad = cantidad;
             colaProduccion.push(pieza);
@@ -490,7 +639,7 @@
         function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
         function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
-        // 6. MOTOR DE EMPAQUETADO TETRIS
+        // 6. MOTOR TETRIS
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
             pack(w, h, rotatable) {
@@ -686,12 +835,7 @@
                         format: [anchoCm, altoCm]
                     });
                     
-                    await pdf.svg(svgWorkspace, {
-                        x: 0,
-                        y: 0,
-                        width: anchoCm,
-                        height: altoCm
-                    });
+                    await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm });
                     
                     pdf.save(`GangSheet_Produccion.pdf`);
                 } catch(err) {
