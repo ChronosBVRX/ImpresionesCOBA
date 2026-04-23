@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gang Sheet Studio - Nube Supabase Integrada</title>
+    <title>Gang Sheet Studio - Sistema Dual Cloud</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -36,16 +36,44 @@
             --text-color: #f8fafc;
             --border-color: #334155;
             --highlight: #3b82f6;
+            --topbar-bg: #0b1120;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
 
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        /* Barra de Navegación Principal (NUEVO) */
+        .top-navbar {
+            background-color: var(--topbar-bg);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        .top-navbar h1 { margin: 0; font-size: 1.5rem; color: white; display: flex; align-items: center; gap: 10px; }
+        .nav-buttons { display: flex; gap: 10px; }
+        .nav-btn {
+            background-color: transparent; border: 2px solid var(--border-color); color: #94a3b8;
+            padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s;
+        }
+        .nav-btn.active { background-color: var(--primary-color); border-color: var(--primary-color); color: #000; }
+        .nav-btn:hover:not(.active) { background-color: var(--border-color); color: white; }
+
+        .env-wrapper { display: none; padding: 20px; justify-content: center; flex-grow: 1; }
+        .env-wrapper.active-env { display: flex; }
+
         .app-container { display: flex; gap: 20px; max-width: 1700px; width: 100%; height: fit-content; }
 
-        /* Panel Izquierdo */
-        .controls-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); width: 480px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; }
+        /* Paneles */
+        .controls-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); width: 450px; flex-shrink: 0; display: flex; flex-direction: column; gap: 15px; z-index: 10; }
         .controls-panel h2 { margin-top: 0; margin-bottom: 5px; color: #ffffff; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-size: 1.2rem; }
+        .preview-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); flex-grow: 1; display: flex; flex-direction: column; width: 100%; }
+
+        /* Controles de Formulario */
         .form-group { display: flex; flex-direction: column; gap: 5px; }
         .form-group label { font-weight: 600; font-size: 0.85rem; color: #94a3b8; }
         .form-group input[type="text"], .form-group input[type="number"], .form-group select { padding: 10px; background-color: #0f172a; color: white; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; width: 100%; text-transform: uppercase; }
@@ -53,23 +81,25 @@
         .dimensions-container { display: flex; gap: 10px; background-color: #0f172a; padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         .dimensions-container .form-group { flex: 1; min-width: 0; }
 
-        /* Pestañas */
+        /* Pestañas Secundarias (Para el Modo Producción) */
         .type-selector { display: flex; background-color: #0f172a; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 10px; flex-wrap: wrap; }
-        .type-btn { flex: 1; min-width: 45%; padding: 10px 5px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none; transition: 0.3s; border-bottom: 1px solid var(--border-color); }
+        .type-btn { flex: 1; min-width: 30%; padding: 10px 5px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none; transition: 0.3s; border-bottom: 1px solid var(--border-color); }
         .type-btn.active { background-color: var(--highlight); color: white; border-bottom: none; }
         .hidden-panel { display: none !important; }
 
-        /* Galería del Abecedario */
-        .pdf-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 350px; overflow-y: auto; background-color: #0f172a; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; }
-        .gallery-item { background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .gallery-item img { max-height: 60px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; }
-        .char-mapper { width: 100% !important; text-align: center; font-weight: bold; color: var(--primary-color) !important; border-color: var(--highlight) !important; }
+        /* MODO 1: Galería Extensa del Abecedario */
+        .pdf-gallery-master { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; max-height: 70vh; overflow-y: auto; background-color: #0f172a; padding: 20px; border: 2px dashed var(--border-color); border-radius: 8px; flex-grow: 1; }
+        .gallery-item { background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: transform 0.2s; }
+        .gallery-item:hover { transform: scale(1.05); border-color: var(--primary-color); }
+        .gallery-item img { max-height: 80px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; padding: 5px; }
+        .char-mapper { width: 100% !important; text-align: center; font-weight: bold; font-size: 1.2rem !important; color: var(--primary-color) !important; border-color: var(--highlight) !important; }
 
-        /* Botones */
+        /* Botones Generales */
         .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-scan, .btn-save-abc { width: 100%; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: inherit; font-weight: bold; }
         .btn-add { background-color: var(--secondary-color); color: white; padding: 12px; font-size: 0.95rem; }
-        .btn-scan { background-color: var(--highlight); color: white; padding: 12px; font-size: 0.95rem; margin-top: 10px; }
-        .btn-save-abc { background-color: var(--secondary-color); color: white; padding: 12px; font-size: 1rem; margin-top: 10px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); }
+        .btn-scan { background-color: var(--highlight); color: white; padding: 15px; font-size: 1.05rem; margin-top: 10px; }
+        .btn-save-abc { background-color: var(--primary-color); color: #000; padding: 15px; font-size: 1.1rem; margin-top: 15px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); }
+        .btn-save-abc:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
         .btn-auto { background-color: var(--primary-color); color: #000; padding: 15px; font-size: 1.05rem; margin-top: 10px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); }
         .btn-auto:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
         .btn-clear { background-color: transparent; color: var(--danger-color); border: 1px solid var(--danger-color); padding: 10px; font-size: 0.9rem; }
@@ -83,8 +113,7 @@
         .advanced-options { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.85rem; color: #cbd5e1; }
         .advanced-options input[type="checkbox"] { accent-color: var(--primary-color); cursor: pointer; }
 
-        /* Panel Derecho */
-        .preview-panel { background-color: var(--panel-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); flex-grow: 1; display: flex; flex-direction: column; width: 100%; }
+        /* Lienzo de Producción */
         .canvas-header { display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
         .btn-clear-canvas { background-color: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
         .btn-clear-canvas:hover { background-color: #334155; color: white; border-color: #94a3b8; }
@@ -108,130 +137,177 @@
 </head>
 <body>
 
-    <div class="app-container">
-        <div class="controls-panel">
-            <h2>1. Configurar Rollo</h2>
-            <div class="dimensions-container">
-                <div class="form-group"><label>Ancho (cm):</label><input type="number" id="ancho-input" value="57" min="1" step="1" onchange="actualizarLienzo()"></div>
-                <div class="form-group"><label>Alto (cm):</label><input type="number" id="alto-input" value="112" min="1" step="1" onchange="actualizarLienzo()"></div>
-            </div>
+    <div class="top-navbar">
+        <h1>✂️ GANG SHEET STUDIO</h1>
+        <div class="nav-buttons">
+            <button class="nav-btn active" id="nav-btn-extractor" onclick="switchEnvironment('extractor')">☁️ Módulo 1: Laboratorio de Fuentes (PDF)</button>
+            <button class="nav-btn" id="nav-btn-produccion" onclick="switchEnvironment('produccion')">🏭 Módulo 2: Producción de Vinil</button>
+        </div>
+    </div>
 
-            <h2>2. Preparar Elementos</h2>
-            
-            <div class="type-selector">
-                <button class="type-btn" id="btn-tab-texto" onclick="cambiarTab('texto')">Normal (PC)</button>
-                <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTab('imagen')">PNG Suelto</button>
-                <button class="type-btn" id="btn-tab-pdf" onclick="cambiarTab('pdf')">☁️ Guardar a Supabase</button>
-                <button class="type-btn active" id="btn-tab-constructor" onclick="cambiarTab('constructor')">🔤 Armar de Supabase</button>
-            </div>
-
-            <div id="panel-texto" class="form-group hidden-panel" style="gap: 15px;">
-                <div class="form-group"><label>Texto (Número o Nombre):</label><input type="text" id="texto-input" value="10"></div>
-                <div class="form-group"><label style="color: var(--primary-color);">Cargar Fuente (.ttf/.otf):</label><input type="file" id="font-upload" accept=".ttf, .otf, .woff"></div>
-                <div class="form-group"><label>Color:</label><input type="color" id="color-input" value="#ffffff"></div>
-                <div class="dimensions-container">
-                    <div class="form-group"><label>Altura (cm):</label><input type="number" id="alto-numero-input-txt" value="8" min="1" step="0.5"></div>
-                    <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-txt" value="1" min="1"></div>
-                </div>
-                <button class="btn-add" onclick="agregarAColaTexto()">↓ Añadir a la Cola</button>
-            </div>
-
-            <div id="panel-imagen" class="form-group hidden-panel" style="gap: 15px;">
-                <div class="form-group"><label style="color: var(--primary-color);">Sube un diseño suelto (PNG):</label><input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml"></div>
-                <div class="dimensions-container" style="margin-top: 10px;">
-                    <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-img" value="22" min="1" step="0.5"></div>
-                    <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-img" value="1" min="1"></div>
-                </div>
-                <button class="btn-add" onclick="agregarAColaImagen()">↓ Añadir a la Cola</button>
-            </div>
-
-            <div id="panel-pdf" class="form-group hidden-panel" style="gap: 15px;">
-                <div id="cv-status">Inicializando Cerebro OpenCV... ⏳</div>
-                <div class="form-group">
-                    <label style="color: var(--primary-color);">1. Sube el PDF para extraer números/letras:</label>
-                    <input type="file" id="pdf-ai-upload" accept="application/pdf">
-                    <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">🔍 Escanear Piezas</button>
-                    <div id="cv-loader">Extrayendo contornos y borrando fondos oscuros... 🚀</div>
-                </div>
+    <div id="env-extractor" class="env-wrapper active-env">
+        <div class="app-container">
+            <div class="controls-panel" style="width: 400px;">
+                <h2>Laboratorio de Tipografías</h2>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Extrae imágenes de un PDF y guárdalas como una fuente reutilizable en Supabase.</p>
                 
-                <div class="form-group">
-                    <label>2. Asigna la letra y súbelo a la Nube (Supabase):</label>
-                    <div class="pdf-gallery" id="pdf-gallery">
-                        <div style="grid-column: span 3; text-align: center; color: #64748b; font-size: 0.85rem; padding: 20px;">Escanea un PDF para ver las piezas aquí.</div>
+                <div id="cv-status">Inicializando Motor OpenCV... ⏳</div>
+                
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="color: var(--primary-color);">1. Nombre personalizado para la tipografía:</label>
+                    <input type="text" id="font-custom-name" placeholder="Ej. AL NASSR LOCAL 2025" style="border-color: var(--primary-color);">
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>2. Sube el PDF con los números/letras:</label>
+                    <input type="file" id="pdf-ai-upload" accept="application/pdf">
+                    <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">🔍 Escanear Piezas del PDF</button>
+                    <div id="cv-loader">Extrayendo contornos y limpiando fondos... 🚀</div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>3. Revisa la galería y guarda en la nube:</label>
+                    <button id="btn-save-abc" class="btn-save-abc" onclick="guardarAbecedarioSupabase()">☁️ Subir a Supabase</button>
+                    <p style="font-size: 0.8rem; color: #64748b; text-align: center;">Nota: Solo se guardarán las imágenes que tengan una letra o número asignado.</p>
+                </div>
+            </div>
+
+            <div class="preview-panel">
+                <div class="canvas-header">
+                    <h2 style="margin: 0;">Galería de Piezas Extraídas</h2>
+                    <p>Asigna la letra/número debajo de cada imagen.</p>
+                </div>
+                <div class="pdf-gallery-master" id="pdf-gallery-master">
+                    <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">
+                        Sube un PDF y presiona "Escanear" para ver los resultados aquí.
                     </div>
-                    <button id="btn-save-abc" class="btn-save-abc" style="display:none;" onclick="guardarAbecedarioSupabase()">☁️ Subir a Supabase</button>
                 </div>
                 <canvas id="internal-pdf-canvas" style="display:none;"></canvas>
             </div>
-
-            <div id="panel-constructor" class="form-group" style="gap: 15px;">
-                <div class="form-group">
-                    <label style="color: var(--secondary-color);">Selecciona fuente de la Nube (Supabase):</label>
-                    <select id="db-font-selector">
-                        <option value="">Cargando desde la nube... ☁️</option>
-                    </select>
-                    <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente de la nube</button>
-                </div>
-                <div class="form-group">
-                    <label style="color: var(--highlight);">Escribe la palabra (Usa tu abecedario):</label>
-                    <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
-                </div>
-                <div class="espaciado-letras">
-                    <label>Separación entre letras:</label>
-                    <input type="range" id="letter-spacing" min="0" max="50" value="10" style="width: 50%;">
-                </div>
-                <div class="dimensions-container" style="margin-top: 10px;">
-                    <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-const" value="8" min="1" step="0.5"></div>
-                    <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-const" value="1" min="1"></div>
-                </div>
-                <button class="btn-add" onclick="agregarAColaConstructor()">↓ Armar y Añadir a la Cola</button>
-            </div>
-
-            <h2 style="margin-top: 15px;">Cola de Producción</h2>
-            <div class="queue-container" id="queue-list"><div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div></div>
-
-            <h2 style="margin-top: 15px;">3. Acomodo y Exportación</h2>
-            <div class="advanced-options"><input type="checkbox" id="permitir-rotacion" checked><label for="permitir-rotacion">Activar modo Tetris (rotar 90°)</label></div>
-            <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar Acomodo Exacto</button>
-            
-            <div class="button-row">
-                <button class="btn-clear" style="flex: 1;" onclick="vaciarCola()">🗑️ Borrar</button>
-                <button class="btn-exportar-png" style="flex: 1;" onclick="descargarPNG()">💾 PNG</button>
-                <button class="btn-exportar-pdf" style="flex: 1;" onclick="descargarPDF()">📄 PDF</button>
-            </div>
-            <div id="loader">Procesando archivo pesado... ⏳</div>
         </div>
+    </div>
 
-        <div class="preview-panel">
-            <div class="canvas-header">
-                <div>
-                    <h2 style="margin: 0;">Lienzo de Producción</h2>
-                    <button class="btn-clear-canvas" onclick="limpiarLienzo()">🧹 Limpiar Lienzo</button>
+    <div id="env-produccion" class="env-wrapper">
+        <div class="app-container">
+            <div class="controls-panel">
+                <h2>1. Configurar Rollo</h2>
+                <div class="dimensions-container">
+                    <div class="form-group"><label>Ancho (cm):</label><input type="number" id="ancho-input" value="57" min="1" step="1" onchange="actualizarLienzo()"></div>
+                    <div class="form-group"><label>Alto (cm):</label><input type="number" id="alto-input" value="112" min="1" step="1" onchange="actualizarLienzo()"></div>
                 </div>
-                <div style="text-align: right;">
-                    <p id="medida-info">Plantilla: 57 cm x 112 cm</p>
-                    <span id="status-info" class="status-message"></span>
+
+                <h2>2. Preparar Elementos</h2>
+                
+                <div class="type-selector">
+                    <button class="type-btn active" id="btn-tab-constructor" onclick="cambiarTabProd('constructor')">🔤 Base de Datos</button>
+                    <button class="type-btn" id="btn-tab-texto" onclick="cambiarTabProd('texto')">PC Normal</button>
+                    <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTabProd('imagen')">PNG Suelto</button>
                 </div>
+
+                <div id="panel-constructor" class="form-group" style="gap: 15px;">
+                    <div class="form-group">
+                        <label style="color: var(--secondary-color);">Selecciona fuente de la Nube (Supabase):</label>
+                        <select id="db-font-selector">
+                            <option value="">Cargando desde la nube... ☁️</option>
+                        </select>
+                        <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente seleccionada de la nube</button>
+                    </div>
+                    <div class="form-group">
+                        <label style="color: var(--highlight);">Escribe la palabra (Usa tu abecedario):</label>
+                        <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
+                    </div>
+                    <div class="espaciado-letras">
+                        <label>Separación entre letras:</label>
+                        <input type="range" id="letter-spacing" min="0" max="50" value="10" style="width: 50%;">
+                    </div>
+                    <div class="dimensions-container" style="margin-top: 10px;">
+                        <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-const" value="22" min="1" step="0.5"></div>
+                        <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-const" value="1" min="1"></div>
+                    </div>
+                    <button class="btn-add" onclick="agregarAColaConstructor()">↓ Armar y Añadir a la Cola</button>
+                </div>
+
+                <div id="panel-texto" class="form-group hidden-panel" style="gap: 15px;">
+                    <div class="form-group"><label>Texto (Número o Nombre):</label><input type="text" id="texto-input" value="10"></div>
+                    <div class="form-group"><label style="color: var(--primary-color);">Cargar Fuente (.ttf/.otf):</label><input type="file" id="font-upload" accept=".ttf, .otf, .woff"></div>
+                    <div class="form-group"><label>Color:</label><input type="color" id="color-input" value="#ffffff"></div>
+                    <div class="dimensions-container">
+                        <div class="form-group"><label>Altura (cm):</label><input type="number" id="alto-numero-input-txt" value="8" min="1" step="0.5"></div>
+                        <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-txt" value="1" min="1"></div>
+                    </div>
+                    <button class="btn-add" onclick="agregarAColaTexto()">↓ Añadir a la Cola</button>
+                </div>
+
+                <div id="panel-imagen" class="form-group hidden-panel" style="gap: 15px;">
+                    <div class="form-group"><label style="color: var(--primary-color);">Sube un diseño suelto (PNG):</label><input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml"></div>
+                    <div class="dimensions-container" style="margin-top: 10px;">
+                        <div class="form-group"><label>Altura FÍSICA (cm):</label><input type="number" id="alto-numero-input-img" value="22" min="1" step="0.5"></div>
+                        <div class="form-group"><label>¿Cuántos?:</label><input type="number" id="cantidad-input-img" value="1" min="1"></div>
+                    </div>
+                    <button class="btn-add" onclick="agregarAColaImagen()">↓ Añadir a la Cola de Impresión</button>
+                </div>
+
+                <h2 style="margin-top: 15px;">Cola de Producción</h2>
+                <div class="queue-container" id="queue-list"><div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div></div>
+
+                <h2 style="margin-top: 15px;">3. Acomodo y Exportación</h2>
+                <div class="advanced-options"><input type="checkbox" id="permitir-rotacion" checked><label for="permitir-rotacion">Activar modo Tetris (rotar 90°)</label></div>
+                <button class="btn-auto" onclick="autoAcomodar()">⚡ Generar Acomodo Exacto</button>
+                
+                <div class="button-row">
+                    <button class="btn-clear" style="flex: 1;" onclick="vaciarCola()">🗑️ Borrar</button>
+                    <button class="btn-exportar-png" style="flex: 1;" onclick="descargarPNG()">💾 PNG</button>
+                    <button class="btn-exportar-pdf" style="flex: 1;" onclick="descargarPDF()">📄 PDF</button>
+                </div>
+                <div id="loader">Procesando archivo pesado... ⏳</div>
             </div>
-            
-            <div class="canvas-container" id="canvas-wrapper">
-                <svg id="svg-workspace" xmlns="http://www.w3.org/2000/svg">
-                    <defs id="svg-defs"></defs>
-                    <g id="texto-container"></g>
-                </svg>
+
+            <div class="preview-panel">
+                <div class="canvas-header">
+                    <div>
+                        <h2 style="margin: 0;">Lienzo de Producción</h2>
+                        <button class="btn-clear-canvas" onclick="limpiarLienzo()">🧹 Limpiar Lienzo</button>
+                    </div>
+                    <div style="text-align: right;">
+                        <p id="medida-info">Plantilla: 57 cm x 112 cm</p>
+                        <span id="status-info" class="status-message"></span>
+                    </div>
+                </div>
+                
+                <div class="canvas-container" id="canvas-wrapper">
+                    <svg id="svg-workspace" xmlns="http://www.w3.org/2000/svg">
+                        <defs id="svg-defs"></defs>
+                        <g id="texto-container"></g>
+                    </svg>
+                </div>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 15px; text-align: center;">* El borde naranja punteado indica el límite exacto. Arrastra los elementos libremente.</p>
             </div>
-            <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 15px; text-align: center;">* El borde naranja punteado indica el límite exacto. Arrastra los elementos libremente.</p>
         </div>
     </div>
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE SUPABASE (CORREGIDO)
+        // CONTROL DE ENTORNOS (LAS DOS APLICACIONES)
+        // ==========================================
+        function switchEnvironment(env) {
+            // Actualizar botones del Navbar
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`nav-btn-${env}`).classList.add('active');
+            
+            // Cambiar contenedor activo
+            document.querySelectorAll('.env-wrapper').forEach(wrapper => wrapper.classList.remove('active-env'));
+            document.getElementById(`env-${env}`).classList.add('active-env');
+            
+            if (env === 'produccion') {
+                actualizarLienzo(); // Asegura que el canvas se acomode al cambiar de vista
+            }
+        }
+
+        // ==========================================
+        // CONFIGURACIÓN DE SUPABASE
         // ==========================================
         const supabaseUrl = 'https://msqfpkmusmpoismtkxrb.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zcWZwa211c21wb2lzbXRreHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Nzg5NDUsImV4cCI6MjA5MjU1NDk0NX0.PrL67uHOTJnjjys5Nb-w0XlclMXt_hNrJ2vXUku-VfE';
-        
-        // RENOMBRADO PARA EVITAR CONFLICTO CON LA LIBRERÍA
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let baseDatosGlobal = {}; 
@@ -250,7 +326,7 @@
                 }
                 actualizarSelectorFuentes();
             } catch (err) {
-                console.error("Error al conectar con Supabase:", err.message);
+                console.error("Error Supabase:", err.message);
                 selectorFuentesDB.innerHTML = '<option value="">Error de conexión a la Nube. (Revisa SQL)</option>';
             }
         }
@@ -277,100 +353,21 @@
                     delete baseDatosGlobal[nombre];
                     actualizarSelectorFuentes();
                     alert("Fuente eliminada de la nube con éxito.");
-                } catch(err) {
-                    alert("Error al eliminar de Supabase: " + err.message);
-                }
-            }
-        }
-
-        async function guardarAbecedarioSupabase() {
-            let nombreFuente = prompt("Nombre para tu nueva fuente en la Nube (Ej. Al Nassr 2025):");
-            if (!nombreFuente || nombreFuente.trim() === "") return;
-
-            let abcNuevo = {};
-            let guardadas = 0;
-            piezasExtraidasTemp.forEach(pieza => {
-                let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
-                if (char) { abcNuevo[char] = { src: pieza.src, propor: pieza.propor }; guardadas++; }
-            });
-            
-            if(guardadas > 0) {
-                document.getElementById('btn-save-abc').textContent = "Subiendo a Supabase... ⏳";
-                document.getElementById('btn-save-abc').disabled = true;
-
-                try {
-                    const { error } = await supabaseClient.from('abecedarios').upsert({ 
-                        nombre: nombreFuente, 
-                        data: abcNuevo 
-                    }, { onConflict: 'nombre' });
-
-                    if (error) throw error;
-
-                    baseDatosGlobal[nombreFuente] = abcNuevo;
-                    alert(`¡Nube actualizada! Fuente "${nombreFuente}" guardada con ${guardadas} caracteres.`);
-                    actualizarSelectorFuentes();
-                    selectorFuentesDB.value = nombreFuente;
-                    cambiarTab('constructor');
-                } catch(e) {
-                    alert("Error al subir a Supabase: " + e.message + "\n(Asegúrate de haber creado la tabla en SQL).");
-                } finally {
-                    document.getElementById('btn-save-abc').textContent = "☁️ Subir a Supabase";
-                    document.getElementById('btn-save-abc').disabled = false;
-                }
-            } else {
-                alert("Asigna al menos una letra para subir.");
+                } catch(err) { alert("Error al eliminar de Supabase: " + err.message); }
             }
         }
 
         // ==========================================
-        // 2. INICIALIZACIÓN Y PESTAÑAS
+        // ENTORNO 1: EXTRACTOR Y GUARDADO EN DB
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-        const anchoInput = document.getElementById('ancho-input');
-        const altoInput = document.getElementById('alto-input');
-        const svgWorkspace = document.getElementById('svg-workspace');
-        const textoContainer = document.getElementById('texto-container');
-        const canvasWrapper = document.getElementById('canvas-wrapper');
-        const queueList = document.getElementById('queue-list');
-        const statusInfo = document.getElementById('status-info');
-        const checkRotacion = document.getElementById('permitir-rotacion');
-        
-        let fuenteActual = null;
-        let imagenUnicaBase64 = null;
-        let proporImagenUnica = 1;
-        let nombreImgSuela = "";
-        let colaProduccion = []; 
-        const PIXELES_POR_CM = 100;
-
         let pdfFileGlobal = null;
         let piezasExtraidasTemp = [];
 
-        opentype.load('https://cdn.jsdelivr.net/npm/@fontsource/anton/files/anton-latin-400-normal.woff', function(err, font) {
-            if (!err) fuenteActual = font;
-        });
-
-        function cambiarTab(modo) {
-            document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('[id^="panel-"]').forEach(p => p.classList.add('hidden-panel'));
-            document.getElementById(`btn-tab-${modo}`).classList.add('active');
-            document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
-        }
-
-        function actualizarLienzo() {
-            const ancho = parseFloat(anchoInput.value) || 57; const alto = parseFloat(altoInput.value) || 112;
-            document.getElementById('medida-info').textContent = `Plantilla: ${ancho} cm x ${alto} cm`;
-            canvasWrapper.style.aspectRatio = `${ancho} / ${alto}`;
-            svgWorkspace.setAttribute('viewBox', `0 0 ${ancho * PIXELES_POR_CM} ${alto * PIXELES_POR_CM}`);
-        }
-
-        // ==========================================
-        // 3. MOTOR DE EXTRACCIÓN (OPENCV)
-        // ==========================================
         document.getElementById('pdf-ai-upload').addEventListener('change', function(e) { pdfFileGlobal = e.target.files[0]; });
 
         async function procesarPDFAuto() {
-            if (!cvReady || !pdfFileGlobal) return;
+            if (!cvReady || !pdfFileGlobal) { alert("Sube un PDF primero."); return; }
             document.getElementById('cv-loader').style.display = 'block'; document.getElementById('btn-scan').style.display = 'none';
 
             const reader = new FileReader();
@@ -398,7 +395,7 @@
                 cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
-                const gallery = document.getElementById('pdf-gallery'); gallery.innerHTML = '';
+                const gallery = document.getElementById('pdf-gallery-master'); gallery.innerHTML = '';
                 let piezacount = 0;
                 
                 for (let i = 0; i < contours.size(); ++i) {
@@ -423,13 +420,80 @@
                 src.delete(); gray.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
-                if(piezacount > 0) document.getElementById('btn-save-abc').style.display = 'block';
-            } catch (err) { alert("Error en el motor OpenCV: " + err); }
+            } catch (err) { alert("Error en OpenCV: " + err); }
+        }
+
+        async function guardarAbecedarioSupabase() {
+            let nombreFuente = document.getElementById('font-custom-name').value.trim();
+            if (!nombreFuente) { alert("Por favor, ponle un nombre a tu tipografía en la caja de texto arriba."); return; }
+
+            let abcNuevo = {};
+            let guardadas = 0;
+            piezasExtraidasTemp.forEach(pieza => {
+                let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
+                if (char) { abcNuevo[char] = { src: pieza.src, propor: pieza.propor }; guardadas++; }
+            });
+            
+            if(guardadas > 0) {
+                const btnSave = document.getElementById('btn-save-abc');
+                btnSave.textContent = "Subiendo a Supabase... ⏳"; btnSave.disabled = true;
+
+                try {
+                    const { error } = await supabaseClient.from('abecedarios').upsert({ nombre: nombreFuente, data: abcNuevo }, { onConflict: 'nombre' });
+                    if (error) throw error;
+
+                    baseDatosGlobal[nombreFuente] = abcNuevo;
+                    alert(`¡Éxito! Tipografía "${nombreFuente}" guardada en la Nube con ${guardadas} caracteres.`);
+                    actualizarSelectorFuentes();
+                    selectorFuentesDB.value = nombreFuente;
+                    
+                    // Limpiar entorno extractor y mandar a producción automáticamente
+                    document.getElementById('font-custom-name').value = "";
+                    document.getElementById('pdf-gallery-master').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">Sube otro PDF para crear más fuentes.</div>';
+                    switchEnvironment('produccion');
+                    cambiarTabProd('constructor');
+
+                } catch(e) { alert("Error al subir a Supabase: " + e.message); } 
+                finally { btnSave.textContent = "☁️ Subir a Supabase"; btnSave.disabled = false; }
+            } else { alert("Asigna al menos una letra para subir."); }
         }
 
         // ==========================================
-        // 4. MOTOR DE CONSTRUCCIÓN (DESDE SUPABASE)
+        // ENTORNO 2: PRODUCCIÓN DE GANG SHEETS
         // ==========================================
+        const anchoInput = document.getElementById('ancho-input');
+        const altoInput = document.getElementById('alto-input');
+        const svgWorkspace = document.getElementById('svg-workspace');
+        const textoContainer = document.getElementById('texto-container');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+        const queueList = document.getElementById('queue-list');
+        const statusInfo = document.getElementById('status-info');
+        const checkRotacion = document.getElementById('permitir-rotacion');
+        
+        let fuenteActual = null;
+        let imagenUnicaBase64 = null;
+        let proporImagenUnica = 1;
+        let nombreImgSuela = "";
+        let colaProduccion = []; 
+        const PIXELES_POR_CM = 100;
+
+        opentype.load('https://cdn.jsdelivr.net/npm/@fontsource/anton/files/anton-latin-400-normal.woff', function(err, font) { if (!err) fuenteActual = font; });
+
+        function cambiarTabProd(modo) {
+            document.querySelectorAll('#env-produccion .type-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('#env-produccion [id^="panel-"]').forEach(p => p.classList.add('hidden-panel'));
+            document.getElementById(`btn-tab-${modo}`).classList.add('active');
+            document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
+        }
+
+        function actualizarLienzo() {
+            const ancho = parseFloat(anchoInput.value) || 57; const alto = parseFloat(altoInput.value) || 112;
+            document.getElementById('medida-info').textContent = `Plantilla: ${ancho} cm x ${alto} cm`;
+            canvasWrapper.style.aspectRatio = `${ancho} / ${alto}`;
+            svgWorkspace.setAttribute('viewBox', `0 0 ${ancho * PIXELES_POR_CM} ${alto * PIXELES_POR_CM}`);
+        }
+
+        // A. CONSTRUCTOR DESDE SUPABASE
         function agregarAColaConstructor() {
             const nombreFuenteSelect = selectorFuentesDB.value;
             if (!nombreFuenteSelect) { alert("Selecciona una fuente de Supabase."); return; }
@@ -465,9 +529,7 @@
             actualizarVistaCola();
         }
 
-        // ==========================================
-        // 5. MÉTODOS BÁSICOS (TEXTO Y PNG)
-        // ==========================================
+        // B. TEXTO Y PNG GENÉRICOS
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if(!file)return; const reader = new FileReader();
             reader.onload = function(ev) { try{ fuenteActual = opentype.parse(ev.target.result); }catch(e){} }; reader.readAsArrayBuffer(file);
@@ -501,6 +563,7 @@
             colaProduccion.push({ tipo: 'imagen', nombreMostrar: `[IMG] ${nombreImgSuela.substring(0,8)}`, src: imagenUnicaBase64, ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx, cantidad: cantidad }); actualizarVistaCola();
         }
 
+        // UTILIDADES DE LA COLA
         function actualizarVistaCola() {
             if (colaProduccion.length === 0) { queueList.innerHTML = '<div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>'; return; }
             queueList.innerHTML = '';
@@ -513,7 +576,7 @@
         function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
         // ==========================================
-        // 6. MOTOR TETRIS Y RENDER
+        // MOTOR TETRIS Y RENDER
         // ==========================================
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
@@ -601,7 +664,7 @@
         svgWorkspace.addEventListener('mousedown', (e) => { let target = e.target; while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') target = target.parentNode; if (target && target.classList?.contains('draggable-piece')) { elementoSeleccionado = target; let pos = obtenerPosicionEvent(e); offset.x = pos.x - parseFloat(target.getAttribute('data-x')); offset.y = pos.y - parseFloat(target.getAttribute('data-y')); } });
         svgWorkspace.addEventListener('mousemove', (e) => { if (elementoSeleccionado) { e.preventDefault(); let pos = obtenerPosicionEvent(e); let newX = pos.x - offset.x, newY = pos.y - offset.y; elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`); elementoSeleccionado.setAttribute('data-x', newX); elementoSeleccionado.setAttribute('data-y', newY); } });
         svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; }); svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
-        svgWorkspace.addEventListener('touchstart', (e) => { }, {passive: false});
+        svgWorkspace.addEventListener('touchstart', (e) => { /* Activo en JS */ }, {passive: false});
 
         // EXPORTACIONES
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
