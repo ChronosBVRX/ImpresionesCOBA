@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Gang Sheets - Industrial PRO (Con Extractor PDF)</title>
+    <title>Gang Sheet Studio - IA de Visión Integrada</title>
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.3/svg2pdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()" type="text/javascript"></script>
 
     <style>
-        /* Diseño Visual, Intuitivo y Responsivo */
+        /* Diseño Visual y Profesional */
         :root {
             --primary-color: #f59e0b; 
             --primary-hover: #d97706;
@@ -41,7 +42,7 @@
         .app-container {
             display: flex;
             gap: 20px;
-            max-width: 1600px;
+            max-width: 1700px;
             width: 100%;
             height: fit-content;
         }
@@ -52,7 +53,7 @@
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 420px;
+            width: 480px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -75,11 +76,6 @@
         .form-group input[type="text"], .form-group input[type="number"], .form-group select {
             padding: 10px; background-color: #0f172a; color: white;
             border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem; width: 100%;
-        }
-
-        .form-group input[type="color"] {
-            width: 100%; height: 40px; padding: 2px; background-color: #0f172a;
-            border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;
         }
 
         .form-group input[type="file"] {
@@ -106,55 +102,46 @@
 
         .hidden-panel { display: none !important; }
 
-        /* Extractor PDF Estilos */
-        .pdf-extractor-container {
-            position: relative;
-            width: 100%;
-            height: 250px;
+        /* Galería del Escáner Automático */
+        .pdf-gallery {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
             background-color: #0f172a;
+            padding: 10px;
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            overflow: auto; /* Permite hacer scroll si el PDF es muy grande */
-            cursor: crosshair;
         }
-        #pdf-canvas {
-            display: block;
-            /* El tamaño lo define pdf.js, nosotros solo lo contenemos */
+        .gallery-item {
+            background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
         }
-        /* El cuadrito rojo de recorte */
-        #crop-box {
-            position: absolute;
-            border: 2px solid var(--danger-color);
-            background-color: rgba(239, 68, 68, 0.2);
-            pointer-events: none; /* Deja que los clics pasen al canvas */
-            display: none;
+        .gallery-item img {
+            max-height: 80px; max-width: 100%; object-fit: contain;
+            background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%);
+            background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px;
         }
+        .gallery-controls { display: flex; width: 100%; gap: 5px; }
+        .gallery-controls input { width: 50%; padding: 5px; font-size: 0.8rem; }
+        .gallery-btn { background-color: var(--secondary-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; padding: 5px; width: 100%; }
 
         /* Botones */
-        .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-exportar-svg {
+        .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-exportar-svg, .btn-scan {
             width: 100%; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: inherit; font-weight: bold;
         }
 
         .btn-add { background-color: var(--secondary-color); color: white; padding: 12px; font-size: 0.95rem; }
-        .btn-add:hover { background-color: var(--secondary-hover); }
-
+        .btn-scan { background-color: var(--highlight); color: white; padding: 12px; font-size: 0.95rem; margin-top: 10px; }
         .btn-auto {
             background-color: var(--primary-color); color: #000; padding: 15px; font-size: 1.05rem;
             margin-top: 10px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
         }
         .btn-auto:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
-
         .btn-clear { background-color: transparent; color: var(--danger-color); border: 1px solid var(--danger-color); padding: 10px; font-size: 0.9rem; }
-        .btn-clear:hover { background-color: rgba(239, 68, 68, 0.1); }
-
         .btn-exportar-png { background-color: #334155; color: white; border: 1px solid #475569; padding: 10px; font-size: 0.9rem; }
-        .btn-exportar-png:hover { background-color: #475569; }
-
         .btn-exportar-pdf { background-color: #dc2626; color: white; padding: 10px; font-size: 0.9rem; }
-        .btn-exportar-pdf:hover { background-color: #b91c1c; }
-
-        .btn-exportar-svg { background-color: transparent; color: #94a3b8; border: 1px solid #475569; padding: 10px; font-size: 0.9rem; font-weight: normal; }
-        .btn-exportar-svg:hover { background-color: #334155; color: white; }
 
         .button-row { display: flex; gap: 8px; margin-top: 10px; }
 
@@ -186,24 +173,19 @@
             background-color: transparent; color: #94a3b8; border: 1px solid #475569; padding: 8px 12px;
             font-size: 0.85rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px;
         }
-        .btn-clear-canvas:hover { background-color: #334155; color: white; border-color: #94a3b8; }
 
         .canvas-header p { margin: 0; color: #94a3b8; font-size: 0.9rem; }
         .status-message { color: var(--secondary-color); font-weight: bold; font-size: 0.9rem; display: block; margin-top: 5px; }
 
-        /* Lienzo visualmente exacto */
         .canvas-container {
             background-image: 
                 linear-gradient(45deg, #1e293b 25%, transparent 25%), 
                 linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
                 linear-gradient(45deg, transparent 75%, #1e293b 75%), 
                 linear-gradient(-45deg, transparent 75%, #1e293b 75%);
-            background-size: 20px 20px; 
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px; 
-            background-color: #0f172a; 
-            border: 3px dashed var(--primary-color);
-            border-radius: 4px;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+            background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; 
+            background-color: #0f172a; border: 3px dashed var(--primary-color);
+            border-radius: 4px; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
             display: flex; position: relative; height: 80vh; max-height: 800px; max-width: 100%;
             aspect-ratio: 57 / 112; overflow: hidden; touch-action: none; margin: 0 auto;
         }
@@ -214,20 +196,17 @@
         }
 
         #svg-workspace { width: 100%; height: 100%; display: block; }
-
         .draggable-piece { cursor: grab; user-select: none; touch-action: none; }
         .draggable-piece:active { cursor: grabbing; }
         .draggable-piece:hover path, .draggable-piece:hover image { opacity: 0.8; }
 
-        #loader { display: none; color: #f59e0b; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
-        
-        .info-text { font-size: 0.8rem; color: #94a3b8; font-style: italic; margin-top: 4px; }
+        #loader, #cv-loader { display: none; color: #f59e0b; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
+        #cv-status { color: #ef4444; font-size: 0.85rem; text-align: center; margin-top: 5px; font-weight: bold; }
 
         @media (max-width: 1024px) {
             .app-container { flex-direction: column; }
             .controls-panel { width: 100%; }
             .canvas-container { height: auto; width: 100%; max-height: 70vh; }
-            .dimensions-container { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -250,27 +229,37 @@
             <h2>2. Preparar Elementos</h2>
             
             <div class="type-selector">
-                <button class="type-btn active" id="btn-tab-texto" onclick="cambiarTab('texto')">Escribir Texto</button>
-                <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTab('imagen')">Subir PNG</button>
-                <button class="type-btn" id="btn-tab-pdf" onclick="cambiarTab('pdf')">Cortar PDF</button>
+                <button class="type-btn" id="btn-tab-texto" onclick="cambiarTab('texto')">Escribir Texto</button>
+                <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTab('imagen')">Subir PNG Suelto</button>
+                <button class="type-btn active" id="btn-tab-pdf" onclick="cambiarTab('pdf')">🤖 Auto-Extraer PDF</button>
             </div>
 
-            <div id="panel-texto" class="form-group" style="gap: 15px;">
+            <div id="panel-texto" class="form-group hidden-panel" style="gap: 15px;">
                 <div class="form-group">
                     <label>Texto (Número o Nombre):</label>
-                    <input type="text" id="texto-input" value="10" placeholder="Ej. 10 o RODRIGUEZ">
+                    <input type="text" id="texto-input" value="10">
                 </div>
                 <div class="dimensions-container">
                     <div class="form-group" style="flex: 1;">
                         <label style="color: var(--primary-color);">Cargar Fuente (.ttf/.otf):</label>
                         <input type="file" id="font-upload" accept=".ttf, .otf, .woff">
-                        <small id="font-status" style="color: var(--secondary-color); font-weight: bold; margin-top: 5px;">Fuente: Anton</small>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Color de Letra:</label>
                     <input type="color" id="color-input" value="#ffffff">
                 </div>
+                <div class="dimensions-container" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <label>Altura FÍSICA (cm):</label>
+                        <input type="number" id="alto-numero-input-txt" value="22" min="1" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>¿Cuántos?:</label>
+                        <input type="number" id="cantidad-input-txt" value="1" min="1">
+                    </div>
+                </div>
+                <button class="btn-add" onclick="agregarAColaTexto()">↓ Añadir a la Cola de Impresión</button>
             </div>
 
             <div id="panel-imagen" class="form-group hidden-panel" style="gap: 15px;">
@@ -278,47 +267,43 @@
                     <label style="color: var(--primary-color);">Sube un diseño ya recortado:</label>
                     <input type="file" id="image-upload" accept="image/png, image/jpeg, image/svg+xml">
                 </div>
-                <div class="form-group" id="image-preview-container" style="display:none; align-items:center; background:#0f172a; padding:10px; border-radius:6px; border:1px solid #334155;">
-                    <img id="image-preview-thumb" src="" style="max-height: 50px; max-width: 100px; margin-right: 15px;">
-                    <div style="font-size: 0.85rem; color: #94a3b8;">
-                        Ancho auto: <span id="auto-width-display" style="color:white; font-weight:bold;">0 cm</span>
+                <div class="dimensions-container" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <label>Altura FÍSICA (cm):</label>
+                        <input type="number" id="alto-numero-input-img" value="22" min="1" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>¿Cuántos?:</label>
+                        <input type="number" id="cantidad-input-img" value="1" min="1">
                     </div>
                 </div>
+                <button class="btn-add" onclick="agregarAColaImagen()">↓ Añadir a la Cola de Impresión</button>
             </div>
 
-            <div id="panel-pdf" class="form-group hidden-panel" style="gap: 15px;">
+            <div id="panel-pdf" class="form-group" style="gap: 15px;">
+                <div id="cv-status">Inicializando Cerebro de IA... ⏳</div>
                 <div class="form-group">
-                    <label style="color: var(--danger-color);">1. Sube la plantilla PDF de tu cliente:</label>
-                    <input type="file" id="pdf-import-upload" accept="application/pdf">
+                    <label style="color: var(--primary-color);">Sube el PDF de tu cliente (Ej. Al Nassr):</label>
+                    <input type="file" id="pdf-ai-upload" accept="application/pdf">
+                    <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">🤖 Escanear y Recortar Todo</button>
+                    <div id="cv-loader">Escaneando contornos y borrando fondos oscuros... 🚀</div>
                 </div>
+                
                 <div class="form-group">
-                    <label>2. Dibuja un cuadro rojo sobre el número a extraer:</label>
-                    <div class="pdf-extractor-container" id="pdf-extractor-container">
-                        <canvas id="pdf-canvas"></canvas>
-                        <div id="crop-box"></div>
+                    <label>Piezas Detectadas:</label>
+                    <div class="pdf-gallery" id="pdf-gallery">
+                        <div style="grid-column: span 2; text-align: center; color: #64748b; font-size: 0.85rem; padding: 20px;">Sube un PDF y escanea para ver los resultados aquí.</div>
                     </div>
-                    <div class="info-text">El fondo negro se volverá transparente automáticamente.</div>
                 </div>
+                <canvas id="internal-pdf-canvas" style="display:none;"></canvas>
             </div>
 
-            <div class="dimensions-container" style="margin-top: 10px;">
-                <div class="form-group">
-                    <label>Altura FÍSICA final (cm):</label>
-                    <input type="number" id="alto-numero-input" value="22" min="1" step="0.5" oninput="calcularAnchoImagen()">
-                </div>
-                <div class="form-group">
-                    <label>¿Cuántos quieres?:</label>
-                    <input type="number" id="cantidad-input" value="1" min="1" step="1" style="background-color: #0f172a; border-color: var(--secondary-color);">
-                </div>
-            </div>
-
-            <button class="btn-add" onclick="agregarACola()">↓ Añadir a la Cola de Impresión</button>
-
+            <h2 style="margin-top: 15px;">Cola de Producción</h2>
             <div class="queue-container" id="queue-list">
                 <div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>
             </div>
 
-            <h2>3. Acomodo y Exportación</h2>
+            <h2 style="margin-top: 15px;">3. Acomodo y Exportación</h2>
             <div class="advanced-options">
                 <input type="checkbox" id="permitir-rotacion" checked>
                 <label for="permitir-rotacion">Activar modo Tetris (rotar 90°)</label>
@@ -332,7 +317,6 @@
                 <button class="btn-exportar-pdf" style="flex: 1;" onclick="descargarPDF()">📄 PDF</button>
             </div>
             <div id="loader">Procesando archivo pesado... ⏳</div>
-            <button class="btn-exportar-svg" style="margin-top: 10px;" onclick="descargarSVG()">💾 Guardar Vector (SVG)</button>
         </div>
 
         <div class="preview-panel">
@@ -353,13 +337,20 @@
                     <g id="texto-container"></g>
                 </svg>
             </div>
-            <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 15px; text-align: center;">* El borde naranja punteado indica el límite exacto de tu material. Arrastra los elementos libremente.</p>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 15px; text-align: center;">* El borde naranja punteado indica el límite exacto. Arrastra los elementos libremente.</p>
         </div>
     </div>
 
     <script>
-        // Inicializar Worker de PDF.js (Obligatorio para que lea PDFs)
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // Inicialización de OpenCV.js
+        let cvReady = false;
+        function onOpenCvReady() {
+            cvReady = true;
+            document.getElementById('cv-status').style.display = 'none';
+            document.getElementById('btn-scan').style.display = 'block';
+        }
 
         const anchoInput = document.getElementById('ancho-input');
         const altoInput = document.getElementById('alto-input');
@@ -372,250 +363,247 @@
         const checkRotacion = document.getElementById('permitir-rotacion');
         const loader = document.getElementById('loader');
         
-        const altoNumeroInput = document.getElementById('alto-numero-input');
-        let modoActual = 'texto'; 
-        
         let fuenteActual = null;
-        let imagenActualBase64 = null;
-        let proporcionImagen = 1; 
-        let nombrePiezaActual = "";
-
+        let imagenUnicaBase64 = null;
+        let proporImagenUnica = 1;
         let colaProduccion = []; 
         const PIXELES_POR_CM = 100;
 
-        // Variables para la guillotina de PDF
-        let pdfCanvas = document.getElementById('pdf-canvas');
-        let pdfCtx = pdfCanvas.getContext('2d');
-        let isCropping = false;
-        let cropStartX = 0, cropStartY = 0;
-        let cropRect = { x: 0, y: 0, w: 0, h: 0 };
-        const cropBox = document.getElementById('crop-box');
-        const pdfContainer = document.getElementById('pdf-extractor-container');
+        let pdfFileGlobal = null;
+        let piezasExtraidas = [];
 
         // 1. Cargar fuente por defecto
         opentype.load('https://cdn.jsdelivr.net/npm/@fontsource/anton/files/anton-latin-400-normal.woff', function(err, font) {
             if (!err) fuenteActual = font;
         });
 
-        // 2. Pestañas
+        // 2. Control de Pestañas
         function cambiarTab(modo) {
-            modoActual = modo;
-            document.getElementById('btn-tab-texto').classList.remove('active');
-            document.getElementById('btn-tab-imagen').classList.remove('active');
-            document.getElementById('btn-tab-pdf').classList.remove('active');
-            
-            document.getElementById('panel-texto').classList.add('hidden-panel');
-            document.getElementById('panel-imagen').classList.add('hidden-panel');
-            document.getElementById('panel-pdf').classList.add('hidden-panel');
+            document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('[id^="panel-"]').forEach(p => p.classList.add('hidden-panel'));
 
             document.getElementById(`btn-tab-${modo}`).classList.add('active');
             document.getElementById(`panel-${modo}`).classList.remove('hidden-panel');
         }
 
-        // 3. Configuración del área
         function actualizarLienzo() {
-            const anchoPlantillaCm = parseFloat(anchoInput.value) || 57;
-            const altoPlantillaCm = parseFloat(altoInput.value) || 112;
-            medidaInfo.textContent = `Plantilla: ${anchoPlantillaCm} cm x ${altoPlantillaCm} cm`;
-            
-            canvasWrapper.style.aspectRatio = `${anchoPlantillaCm} / ${altoPlantillaCm}`;
-            const viewBoxAncho = anchoPlantillaCm * PIXELES_POR_CM;
-            const viewBoxAlto = altoPlantillaCm * PIXELES_POR_CM;
-            svgWorkspace.setAttribute('viewBox', `0 0 ${viewBoxAncho} ${viewBoxAlto}`);
+            const ancho = parseFloat(anchoInput.value) || 57;
+            const alto = parseFloat(altoInput.value) || 112;
+            medidaInfo.textContent = `Plantilla: ${ancho} cm x ${alto} cm`;
+            canvasWrapper.style.aspectRatio = `${ancho} / ${alto}`;
+            svgWorkspace.setAttribute('viewBox', `0 0 ${ancho * PIXELES_POR_CM} ${alto * PIXELES_POR_CM}`);
         }
 
-        // 4. Procesos de Carga
-        // 4A. Fuente
+        // ==========================================
+        // MÓDULO 1: TEXTO VECTORES
+        // ==========================================
         document.getElementById('font-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(evento) {
-                try {
-                    fuenteActual = opentype.parse(evento.target.result);
-                    let n = file.name;
-                    document.getElementById('font-status').textContent = "Fuente activa: " + (n.length > 20 ? n.substring(0,20)+'...' : n);
-                } catch(err) { alert("Error al leer la fuente."); }
+                try { fuenteActual = opentype.parse(evento.target.result); } 
+                catch(err) { alert("Error al leer la fuente."); }
             };
             reader.readAsArrayBuffer(file);
         });
 
-        // 4B. Imagen
+        function agregarAColaTexto() {
+            const texto = document.getElementById('texto-input').value;
+            const color = document.getElementById('color-input').value;
+            const altoCm = parseFloat(document.getElementById('alto-numero-input-txt').value);
+            const cantidad = parseInt(document.getElementById('cantidad-input-txt').value) || 1;
+
+            if (!texto || !fuenteActual) return;
+            
+            const altoPx = altoCm * PIXELES_POR_CM;
+            let pathPrueba = fuenteActual.getPath(texto, 0, 0, 1000);
+            let cajaPrueba = pathPrueba.getBoundingBox();
+            let escalaReal = altoPx / (cajaPrueba.y2 - cajaPrueba.y1);
+            
+            let pathFinal = fuenteActual.getPath(texto, 0, 0, 1000 * escalaReal);
+            let cajaFinal = pathFinal.getBoundingBox();
+            
+            colaProduccion.push({
+                tipo: 'vector', nombreMostrar: `"${texto}"`,
+                pathData: pathFinal.toPathData(2), color: color,
+                ancho: cajaFinal.x2 - cajaFinal.x1, alto: altoPx,
+                offsetX: -cajaFinal.x1, offsetY: -cajaFinal.y1,
+                area: (cajaFinal.x2 - cajaFinal.x1) * altoPx,
+                cantidad: cantidad
+            });
+            actualizarVistaCola();
+        }
+
+        // ==========================================
+        // MÓDULO 2: IMAGEN SUELTA
+        // ==========================================
         document.getElementById('image-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            nombrePiezaActual = file.name;
             const reader = new FileReader();
             reader.onload = function(evento) {
-                imagenActualBase64 = evento.target.result;
+                imagenUnicaBase64 = evento.target.result;
                 const img = new Image();
-                img.onload = function() {
-                    proporcionImagen = img.width / img.height;
-                    document.getElementById('image-preview-thumb').src = imagenActualBase64;
-                    document.getElementById('image-preview-container').style.display = 'flex';
-                    calcularAnchoImagen();
-                };
-                img.src = imagenActualBase64;
+                img.onload = function() { proporImagenUnica = img.width / img.height; };
+                img.src = imagenUnicaBase64;
             };
             reader.readAsDataURL(file);
         });
 
-        // 4C. PDF (Guillotina Virtual)
-        document.getElementById('pdf-import-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file || file.type !== "application/pdf") { alert("Por favor sube un archivo PDF válido."); return; }
-            
-            const reader = new FileReader();
-            reader.onload = function(evento) {
-                const typedarray = new Uint8Array(evento.target.result);
-                
-                // Usar pdf.js para renderizar la página 1
-                pdfjsLib.getDocument(typedarray).promise.then(pdf => {
-                    pdf.getPage(1).then(page => {
-                        // Escala 3 para que tenga muy alta resolución al recortarlo
-                        const scale = 3.0;
-                        const viewport = page.getViewport({scale: scale});
-                        
-                        pdfCanvas.width = viewport.width;
-                        pdfCanvas.height = viewport.height;
-                        
-                        const renderContext = { canvasContext: pdfCtx, viewport: viewport };
-                        page.render(renderContext);
-                    });
-                });
-            };
-            reader.readAsArrayBuffer(file);
-        });
+        function agregarAColaImagen() {
+            if (!imagenUnicaBase64) return;
+            const altoCm = parseFloat(document.getElementById('alto-numero-input-img').value);
+            const cantidad = parseInt(document.getElementById('cantidad-input-img').value) || 1;
+            const altoPx = altoCm * PIXELES_POR_CM;
+            const anchoPx = altoPx * proporImagenUnica;
 
-        // Lógica para dibujar el cuadro de recorte sobre el PDF
-        pdfContainer.addEventListener('mousedown', (e) => {
-            if (modoActual !== 'pdf') return;
-            isCropping = true;
-            // Coordenadas relativas al contenedor
-            const rect = pdfContainer.getBoundingClientRect();
-            cropStartX = e.clientX - rect.left + pdfContainer.scrollLeft;
-            cropStartY = e.clientY - rect.top + pdfContainer.scrollTop;
-            
-            cropBox.style.left = cropStartX + 'px';
-            cropBox.style.top = cropStartY + 'px';
-            cropBox.style.width = '0px';
-            cropBox.style.height = '0px';
-            cropBox.style.display = 'block';
-        });
-
-        pdfContainer.addEventListener('mousemove', (e) => {
-            if (!isCropping) return;
-            const rect = pdfContainer.getBoundingClientRect();
-            let currentX = e.clientX - rect.left + pdfContainer.scrollLeft;
-            let currentY = e.clientY - rect.top + pdfContainer.scrollTop;
-            
-            cropRect.x = Math.min(cropStartX, currentX);
-            cropRect.y = Math.min(cropStartY, currentY);
-            cropRect.w = Math.abs(currentX - cropStartX);
-            cropRect.h = Math.abs(currentY - cropStartY);
-            
-            cropBox.style.left = cropRect.x + 'px';
-            cropBox.style.top = cropRect.y + 'px';
-            cropBox.style.width = cropRect.w + 'px';
-            cropBox.style.height = cropRect.h + 'px';
-        });
-
-        pdfContainer.addEventListener('mouseup', () => { isCropping = false; });
-        pdfContainer.addEventListener('mouseleave', () => { isCropping = false; });
-
-        function calcularAnchoImagen() {
-            if ((modoActual === 'imagen' && imagenActualBase64) || modoActual === 'pdf') {
-                const altoCm = parseFloat(altoNumeroInput.value) || 8;
-                const anchoCm = altoCm * proporcionImagen;
-                document.getElementById('auto-width-display').textContent = anchoCm.toFixed(1) + " cm";
-            }
-        }
-
-        // 5. Motor de Creación de Piezas
-        function crearPieza(altoDeseadoCm) {
-            const altoPx = altoDeseadoCm * PIXELES_POR_CM;
-
-            if (modoActual === 'texto') {
-                const texto = document.getElementById('texto-input').value;
-                const color = document.getElementById('color-input').value;
-                if (!texto || !fuenteActual) return null;
-
-                let pathPrueba = fuenteActual.getPath(texto, 0, 0, 1000);
-                let cajaPrueba = pathPrueba.getBoundingBox();
-                let escalaReal = altoPx / (cajaPrueba.y2 - cajaPrueba.y1);
-                
-                let pathFinal = fuenteActual.getPath(texto, 0, 0, 1000 * escalaReal);
-                let cajaFinal = pathFinal.getBoundingBox();
-                
-                return {
-                    tipo: 'vector', nombreMostrar: `"${texto}"`,
-                    pathData: pathFinal.toPathData(2), color: color,
-                    ancho: cajaFinal.x2 - cajaFinal.x1, alto: altoPx,
-                    offsetX: -cajaFinal.x1, offsetY: -cajaFinal.y1,
-                    area: (cajaFinal.x2 - cajaFinal.x1) * altoPx
-                };
-            } 
-            else if (modoActual === 'imagen') {
-                if (!imagenActualBase64) return null;
-                const anchoPx = altoPx * proporcionImagen;
-                return {
-                    tipo: 'imagen', nombreMostrar: `[IMG] ${nombrePiezaActual.substring(0,10)}...`,
-                    src: imagenActualBase64,
-                    ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx
-                };
-            }
-            else if (modoActual === 'pdf') {
-                if (cropRect.w === 0 || cropRect.h === 0) {
-                    alert("Dibuja un cuadro rojo sobre el número que quieres extraer del PDF.");
-                    return null;
-                }
-                
-                // Recortar la parte del canvas seleccionada
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = cropRect.w;
-                tempCanvas.height = cropRect.h;
-                const tempCtx = tempCanvas.getContext('2d');
-                
-                // Dibujamos solo el recorte
-                tempCtx.drawImage(pdfCanvas, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
-                
-                // Truco Industrial: Quitar el fondo oscuro/negro para hacerlo transparente
-                // Porque el PDF suele renderizarse con fondo. Si el color de letra es blanco y fondo negro...
-                const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-                const data = imgData.data;
-                // Asumimos que los colores muy oscuros (negro) son el fondo de tu PDF y los hacemos transparentes
-                for (let i = 0; i < data.length; i += 4) {
-                    let r = data[i], g = data[i+1], b = data[i+2];
-                    if (r < 30 && g < 30 && b < 30) {
-                        data[i+3] = 0; // Transparencia (Alpha = 0)
-                    }
-                }
-                tempCtx.putImageData(imgData, 0, 0);
-
-                const extractedBase64 = tempCanvas.toDataURL("image/png");
-                proporcionImagen = cropRect.w / cropRect.h;
-                const anchoPx = altoPx * proporcionImagen;
-
-                return {
-                    tipo: 'imagen', nombreMostrar: `[Recorte PDF]`,
-                    src: extractedBase64,
-                    ancho: anchoPx, alto: altoPx, offsetX: 0, offsetY: 0, area: anchoPx * altoPx
-                };
-            }
-        }
-
-        function agregarACola() {
-            const altoTextoCm = parseFloat(altoNumeroInput.value);
-            const cantidad = parseInt(document.getElementById('cantidad-input').value) || 1;
-
-            const pieza = crearPieza(altoTextoCm);
-            if (!pieza) return;
-
-            pieza.cantidad = cantidad;
-            colaProduccion.push(pieza);
+            colaProduccion.push({
+                tipo: 'imagen', nombreMostrar: `[IMG Suelta]`,
+                src: imagenUnicaBase64, ancho: anchoPx, alto: altoPx, 
+                offsetX: 0, offsetY: 0, area: anchoPx * altoPx, cantidad: cantidad
+            });
             actualizarVistaCola();
         }
 
+        // ==========================================
+        // MÓDULO 3: ROBOT DE VISIÓN ARTIFICIAL (OPENCV)
+        // ==========================================
+        document.getElementById('pdf-ai-upload').addEventListener('change', function(e) {
+            pdfFileGlobal = e.target.files[0];
+        });
+
+        async function procesarPDFAuto() {
+            if (!cvReady) { alert("El módulo de IA está cargando, espera un momento."); return; }
+            if (!pdfFileGlobal) { alert("Sube un PDF primero."); return; }
+
+            document.getElementById('cv-loader').style.display = 'block';
+            document.getElementById('btn-scan').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = async function(evento) {
+                const typedarray = new Uint8Array(evento.target.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                const page = await pdf.getPage(1);
+                
+                // Renderizar a muy alta resolución para no perder calidad
+                const viewport = page.getViewport({scale: 3.0});
+                const canvas = document.getElementById('internal-pdf-canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                
+                // LLAMAR A LA VISIÓN ARTIFICIAL
+                extraerContornosConOpenCV(canvas);
+            };
+            reader.readAsArrayBuffer(pdfFileGlobal);
+        }
+
+        function extraerContornosConOpenCV(canvas) {
+            try {
+                let src = cv.imread(canvas);
+                let gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+                
+                // Threshold: Todo lo que no sea negro oscuro se vuelve blanco (Letras)
+                let thresh = new cv.Mat();
+                cv.threshold(gray, thresh, 30, 255, cv.THRESH_BINARY);
+                
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+                cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                
+                piezasExtraidas = [];
+                const gallery = document.getElementById('pdf-gallery');
+                gallery.innerHTML = '';
+
+                let piezacount = 0;
+
+                for (let i = 0; i < contours.size(); ++i) {
+                    let cnt = contours.get(i);
+                    let area = cv.contourArea(cnt);
+                    
+                    // Ignorar basura, puntos y líneas
+                    if (area > 1500) {
+                        let rect = cv.boundingRect(cnt);
+                        
+                        // Extraer el pedazo del canvas original
+                        let tCanvas = document.createElement('canvas');
+                        tCanvas.width = rect.width;
+                        tCanvas.height = rect.height;
+                        let tCtx = tCanvas.getContext('2d');
+                        tCtx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                        
+                        // BORRAR EL FONDO OSCURO MATEMÁTICAMENTE
+                        let imgData = tCtx.getImageData(0,0, rect.width, rect.height);
+                        let data = imgData.data;
+                        for (let j = 0; j < data.length; j += 4) {
+                            if (data[j] < 40 && data[j+1] < 40 && data[j+2] < 40) {
+                                data[j+3] = 0; // Hacer transparente el negro/azul muy oscuro
+                            }
+                        }
+                        tCtx.putImageData(imgData, 0, 0);
+
+                        const base64 = tCanvas.toDataURL('image/png');
+                        const proporcion = rect.width / rect.height;
+                        
+                        const idPieza = `pieza_cv_${piezacount}`;
+                        piezasExtraidas[idPieza] = { src: base64, propor: proporcion };
+
+                        // Crear tarjeta en la galería
+                        const itemHtml = `
+                            <div class="gallery-item">
+                                <img src="${base64}">
+                                <div class="gallery-controls">
+                                    <input type="number" id="h_${idPieza}" value="22" step="0.5" title="Alto (cm)">
+                                    <input type="number" id="q_${idPieza}" value="1" min="1" title="Cant">
+                                </div>
+                                <button class="gallery-btn" onclick="agregarPiezaGaleria('${idPieza}')">Añadir</button>
+                            </div>
+                        `;
+                        gallery.insertAdjacentHTML('beforeend', itemHtml);
+                        piezacount++;
+                    }
+                }
+
+                src.delete(); gray.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
+                
+                document.getElementById('cv-loader').style.display = 'none';
+                document.getElementById('btn-scan').style.display = 'block';
+
+                if (piezacount === 0) {
+                    gallery.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #ef4444;">No se detectaron números. Revisa el PDF.</div>';
+                }
+
+            } catch (err) {
+                alert("Error en el motor de visión: " + err);
+                document.getElementById('cv-loader').style.display = 'none';
+                document.getElementById('btn-scan').style.display = 'block';
+            }
+        }
+
+        // Función para pasar de la galería a la cola del Tetris
+        window.agregarPiezaGaleria = function(idPieza) {
+            const data = piezasExtraidas[idPieza];
+            const altoCm = parseFloat(document.getElementById(`h_${idPieza}`).value);
+            const cantidad = parseInt(document.getElementById(`q_${idPieza}`).value);
+            
+            const altoPx = altoCm * PIXELES_POR_CM;
+            const anchoPx = altoPx * data.propor;
+
+            colaProduccion.push({
+                tipo: 'imagen', nombreMostrar: `[Robot PDF]`,
+                src: data.src, ancho: anchoPx, alto: altoPx, 
+                offsetX: 0, offsetY: 0, area: anchoPx * altoPx, cantidad: cantidad
+            });
+            actualizarVistaCola();
+        }
+
+        // ==========================================
+        // UTILIDADES Y COLA
+        // ==========================================
         function actualizarVistaCola() {
             if (colaProduccion.length === 0) {
                 queueList.innerHTML = '<div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 10px;">La cola está vacía</div>';
@@ -634,12 +622,13 @@
                 queueList.appendChild(div);
             });
         }
-
         function eliminarDeCola(index) { colaProduccion.splice(index, 1); actualizarVistaCola(); }
         function vaciarCola() { colaProduccion = []; actualizarVistaCola(); }
         function limpiarLienzo() { textoContainer.innerHTML = ''; statusInfo.textContent = ''; }
 
-        // 6. MOTOR TETRIS
+        // ==========================================
+        // MOTOR TETRIS (GUILLOTINE) Y RENDERIZADO
+        // ==========================================
         class GuillotinePacker {
             constructor(width, height) { this.freeRects = [{x: 0, y: 0, w: width, h: height}]; }
             pack(w, h, rotatable) {
@@ -739,17 +728,9 @@
 
             gMaster.appendChild(gRotacion);
             textoContainer.appendChild(gMaster);
-
-            gMaster.addEventListener('dblclick', function() { textoContainer.removeChild(gMaster); });
-            let lastTouchTime = 0;
-            gMaster.addEventListener('touchend', function(e) {
-                let tapLength = new Date().getTime() - lastTouchTime;
-                if (tapLength < 500 && tapLength > 0) { textoContainer.removeChild(gMaster); e.preventDefault(); }
-                lastTouchTime = new Date().getTime();
-            });
         }
 
-        // 7. ARRASTRAR Y SOLTAR
+        // DRAG AND DROP
         let elementoSeleccionado = null; let offset = { x: 0, y: 0 };
         function obtenerPosicionEvent(evt) {
             let cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -757,57 +738,41 @@
             let CTM = svgWorkspace.getScreenCTM();
             return { x: (cx - CTM.e) / CTM.a, y: (cy - CTM.f) / CTM.d };
         }
-
-        function iniciarArrastre(evt) {
-            let target = evt.target;
+        svgWorkspace.addEventListener('mousedown', (e) => {
+            let target = e.target;
             while (target && !target.classList?.contains('draggable-piece') && target.tagName !== 'svg') { target = target.parentNode; }
             if (target && target.classList?.contains('draggable-piece')) {
                 elementoSeleccionado = target;
-                let pos = obtenerPosicionEvent(evt);
-                let currentX = parseFloat(elementoSeleccionado.getAttribute('data-x'));
-                let currentY = parseFloat(elementoSeleccionado.getAttribute('data-y'));
-                offset.x = pos.x - currentX; offset.y = pos.y - currentY;
+                let pos = obtenerPosicionEvent(e);
+                offset.x = pos.x - parseFloat(target.getAttribute('data-x'));
+                offset.y = pos.y - parseFloat(target.getAttribute('data-y'));
             }
-        }
-
-        function duranteArrastre(evt) {
+        });
+        svgWorkspace.addEventListener('mousemove', (e) => {
             if (elementoSeleccionado) {
-                evt.preventDefault();
-                let pos = obtenerPosicionEvent(evt);
+                e.preventDefault();
+                let pos = obtenerPosicionEvent(e);
                 let newX = pos.x - offset.x, newY = pos.y - offset.y;
                 elementoSeleccionado.setAttribute('transform', `translate(${newX}, ${newY})`);
                 elementoSeleccionado.setAttribute('data-x', newX);
                 elementoSeleccionado.setAttribute('data-y', newY);
             }
-        }
+        });
+        svgWorkspace.addEventListener('mouseup', () => { elementoSeleccionado = null; });
+        svgWorkspace.addEventListener('mouseleave', () => { elementoSeleccionado = null; });
 
-        function terminarArrastre() { elementoSeleccionado = null; }
-
-        svgWorkspace.addEventListener('mousedown', iniciarArrastre);
-        svgWorkspace.addEventListener('mousemove', duranteArrastre);
-        svgWorkspace.addEventListener('mouseup', terminarArrastre);
-        svgWorkspace.addEventListener('mouseleave', terminarArrastre);
-        svgWorkspace.addEventListener('touchstart', iniciarArrastre, {passive: false});
-        svgWorkspace.addEventListener('touchmove', duranteArrastre, {passive: false});
-        svgWorkspace.addEventListener('touchend', terminarArrastre);
-        svgWorkspace.addEventListener('touchcancel', terminarArrastre);
-
-        // 8. EXPORTACIONES 
+        // EXPORTACIONES
         function descargarPNG() {
             loader.style.display = 'block';
             setTimeout(() => {
                 const anchoCm = parseFloat(anchoInput.value) || 57;
                 const altoCm = parseFloat(altoInput.value) || 112;
-                const pxPorCm = 59.055; 
-                
                 const canvas = document.createElement("canvas");
-                canvas.width = Math.round(anchoCm * pxPorCm);
-                canvas.height = Math.round(altoCm * pxPorCm);
+                canvas.width = Math.round(anchoCm * 59.055);
+                canvas.height = Math.round(altoCm * 59.055);
                 const ctx = canvas.getContext("2d");
 
-                const svgData = new XMLSerializer().serializeToString(svgWorkspace);
-                const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgData);
-                
+                const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace));
                 const img = new Image();
                 img.onload = function() {
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -827,28 +792,17 @@
                 try {
                     const anchoCm = parseFloat(anchoInput.value) || 57;
                     const altoCm = parseFloat(altoInput.value) || 112;
-                    
                     const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF({
-                        orientation: anchoCm > altoCm ? 'landscape' : 'portrait',
-                        unit: 'cm',
-                        format: [anchoCm, altoCm]
-                    });
-                    
+                    const pdf = new jsPDF({ orientation: anchoCm > altoCm ? 'landscape' : 'portrait', unit: 'cm', format: [anchoCm, altoCm] });
                     await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm });
-                    
                     pdf.save(`GangSheet_Produccion.pdf`);
-                } catch(err) {
-                    alert("Hubo un error al generar el PDF. Verifica la consola.");
-                    console.error(err);
-                }
+                } catch(err) { console.error(err); }
                 loader.style.display = 'none';
             }, 50);
         }
 
         function descargarSVG() {
-            const svgData = new XMLSerializer().serializeToString(svgWorkspace);
-            const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgData);
+            const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace));
             const link = document.createElement("a");
             link.download = `GangSheet_Vector.svg`;
             link.href = svgBase64;
@@ -858,7 +812,6 @@
         }
 
         window.onload = actualizarLienzo;
-
     </script>
 </body>
 </html>
