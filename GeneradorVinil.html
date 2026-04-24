@@ -466,10 +466,9 @@
                 const pdf = await pdfjsLib.getDocument(typedarray).promise;
                 const page = await pdf.getPage(1);
                 
-                // SISTEMA ANTI-OOM (Out Of Memory): Escalado dinámico seguro
                 const baseViewport = page.getViewport({scale: 1.0});
                 let dynamicScale = 3.0; 
-                const maxSafeDimension = 2800; // Limite optimizado para evitar colapso de memoria RAM
+                const maxSafeDimension = 2800;
                 const largestSide = Math.max(baseViewport.width, baseViewport.height);
                 
                 if (largestSide * dynamicScale > maxSafeDimension) {
@@ -489,7 +488,7 @@
         }
 
         async function extraerMascaraExacta(canvas) {
-            let src, gray, thresh, contours, hierarchy, mask, maskClone, kernel;
+            let src, gray, thresh, contours, hierarchy, mask, maskClone;
             
             try {
                 let rawStyles = document.getElementById('font-styles-input').value;
@@ -502,14 +501,12 @@
                 
                 thresh = new cv.Mat(); 
                 cv.Canny(gray, thresh, 50, 200, 3, false);
-                
-                // CORRECCIÓN 2: Cierre morfológico estricto (3x3) para no fusionar letras cercanas
-                kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
-                cv.morphologyEx(thresh, thresh, cv.MORPH_CLOSE, kernel);
+                // SE ELIMINÓ LA DILATACIÓN PARA EVITAR LA FUSIÓN DE NÚMEROS (1234 pegados)
 
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
-                cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                // CORRECCIÓN 1: Usar RETR_CCOMP para recuperar los agujeros internos (padres e hijos)
+                cv.findContours(thresh, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
                 const gallery = document.getElementById('pdf-gallery-master'); gallery.innerHTML = '';
@@ -521,14 +518,20 @@
                 const umbralDistanciaColor = 75; 
 
                 for (let i = 0; i < contours.size(); ++i) {
+                    // CORRECCIÓN 2: Si tiene un padre, es un agujero. Lo ignoramos en el ciclo principal.
+                    let parentIdx = hierarchy.intPtr(i, 3);
+                    if (parentIdx !== -1) continue; 
+
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
                     let rect = cv.boundingRect(cnt);
 
                     let isHuge = (rect.width > mask.cols * 0.85) || (rect.height > mask.rows * 0.85);
-                    let isTooSmall = rect.width < 10 || rect.height < 10;
+                    let isTooSmall = rect.width < 15 || rect.height < 15;
+                    let aspect = rect.width / rect.height;
+                    let isWeirdShape = aspect > 5.0 || aspect < 0.1; // Filtro de franjas atípicas
                     
-                    if (area > 80 && !isHuge && !isTooSmall) {
+                    if (area > 50 && !isHuge && !isTooSmall && !isWeirdShape) {
                         
                         rect.x = Math.max(0, rect.x);
                         rect.y = Math.max(0, rect.y);
@@ -536,7 +539,16 @@
                         rect.height = Math.min(mask.rows - rect.y, rect.height);
 
                         mask.setTo(new cv.Scalar(0)); 
+                        
+                        // CORRECCIÓN 3: Dibuja el borde exterior relleno de blanco
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
+                        
+                        // CORRECCIÓN 4: "Perforar" los agujeros (hijos) rellenándolos de negro
+                        let childIdx = hierarchy.intPtr(i, 2);
+                        while (childIdx !== -1) {
+                            cv.drawContours(mask, contours, childIdx, new cv.Scalar(0), -1, cv.LINE_8, hierarchy, 0);
+                            childIdx = hierarchy.intPtr(childIdx, 0);
+                        }
                         
                         let tCanvas = document.createElement('canvas'); 
                         tCanvas.width = rect.width; tCanvas.height = rect.height;
@@ -553,11 +565,10 @@
 
                         let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
 
-                        // CORRECCIÓN 1: Se eliminó la regla que borraba los colores blancos o claros
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
                             if (maskPixel === 0) { 
-                                data[j+3] = 0; // Solo borramos lo que está fuera de la máscara (el fondo)
+                                data[j+3] = 0; // Transparencia aplicada SOLO a lo que está fuera de la máscara y dentro de los agujeros
                             } else {
                                 rSum += data[j]; gSum += data[j+1]; bSum += data[j+2];
                                 opaqueCount++;
@@ -573,9 +584,7 @@
                             let gAvg = Math.round(gSum/opaqueCount);
                             let bAvg = Math.round(bSum/opaqueCount);
                             
-                            // Calculamos el brillo general para saber si el texto es blanco/claro
                             avgBrightness = (rAvg + gAvg + bAvg) / 3;
-                            
                             let rFinal = rAvg, gFinal = gAvg, bFinal = bAvg;
 
                             for (let c = 0; c < paletaDetectada.length; c++) {
@@ -623,32 +632,29 @@
                             </div>
                         `);
 
-                        // CORRECCIÓN 3: Preparación del lienzo OCR (Inversión inteligente)
+                        // CORRECCIÓN 5: Inversión de imagen para que la IA lea "Texto Negro sobre Blanco" si el original era blanco
                         let ocrCanvas = document.createElement('canvas');
                         let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
                         ocrCanvas.height = rect.height + (pad * 2);
                         let ocrCtx = ocrCanvas.getContext('2d', { willReadFrequently: true });
                         
-                        let isLightText = avgBrightness > 128; // Si el texto es predominantemente claro/blanco
+                        let isLightText = avgBrightness > 128;
 
                         if (isLightText) {
-                            // Tesseract necesita contraste. Ponemos fondo negro.
                             ocrCtx.fillStyle = '#000000';
                             ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
                             ocrCtx.drawImage(tCanvas, pad, pad);
                             
-                            // Invertimos la imagen para que sea texto Negro sobre fondo Blanco (óptimo para OCR)
                             let ocrImgData = ocrCtx.getImageData(0, 0, ocrCanvas.width, ocrCanvas.height);
                             let ocrData = ocrImgData.data;
                             for(let p = 0; p < ocrData.length; p += 4) {
-                                ocrData[p] = 255 - ocrData[p];       // R
-                                ocrData[p+1] = 255 - ocrData[p+1];   // G
-                                ocrData[p+2] = 255 - ocrData[p+2];   // B
+                                ocrData[p] = 255 - ocrData[p];       
+                                ocrData[p+1] = 255 - ocrData[p+1];   
+                                ocrData[p+2] = 255 - ocrData[p+2];   
                             }
                             ocrCtx.putImageData(ocrImgData, 0, 0);
                         } else {
-                            // Texto oscuro normal, fondo blanco estándar
                             ocrCtx.fillStyle = '#ffffff';
                             ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
                             ocrCtx.drawImage(tCanvas, pad, pad);
@@ -670,7 +676,7 @@
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
-                if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete(); if(kernel) kernel.delete();
+                if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
             }
         }
 
