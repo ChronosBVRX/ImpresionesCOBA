@@ -466,9 +466,20 @@
                 const pdf = await pdfjsLib.getDocument(typedarray).promise;
                 const page = await pdf.getPage(1);
                 
-                const viewport = page.getViewport({scale: 3.0});
+                // SISTEMA ANTI-OOM (Out Of Memory): Escalado dinámico seguro
+                const baseViewport = page.getViewport({scale: 1.0});
+                let dynamicScale = 3.0; 
+                const maxSafeDimension = 2800; // Limite optimizado para evitar colapso de memoria RAM Wasm
+                const largestSide = Math.max(baseViewport.width, baseViewport.height);
+                
+                if (largestSide * dynamicScale > maxSafeDimension) {
+                    dynamicScale = maxSafeDimension / largestSide;
+                }
+                
+                const viewport = page.getViewport({scale: dynamicScale});
                 const canvas = document.getElementById('internal-pdf-canvas');
-                const ctx = canvas.getContext('2d');
+                // Aceleración de hardware
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 canvas.width = viewport.width; canvas.height = viewport.height;
                 
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -513,6 +524,7 @@
                     if (area > 80) {
                         let rect = cv.boundingRect(cnt);
                         
+                        // Candado matemático: previene recortes fuera del lienzo
                         rect.x = Math.max(0, rect.x);
                         rect.y = Math.max(0, rect.y);
                         rect.width = Math.min(mask.cols - rect.x, rect.width);
@@ -523,7 +535,7 @@
                         
                         let tCanvas = document.createElement('canvas'); 
                         tCanvas.width = rect.width; tCanvas.height = rect.height;
-                        let tCtx = tCanvas.getContext('2d');
+                        let tCtx = tCanvas.getContext('2d', { willReadFrequently: true });
                         tCtx.drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
                         
                         let imgData = tCtx.getImageData(0,0, rect.width, rect.height); 
@@ -605,7 +617,7 @@
                         let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
                         ocrCanvas.height = rect.height + (pad * 2);
-                        let ocrCtx = ocrCanvas.getContext('2d');
+                        let ocrCtx = ocrCanvas.getContext('2d', { willReadFrequently: true });
                         ocrCtx.fillStyle = '#ffffff';
                         ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
                         ocrCtx.drawImage(tCanvas, pad, pad);
@@ -613,7 +625,7 @@
                         ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
                         piezacount++;
                     }
-                    cnt.delete();
+                    cnt.delete(); // Limpieza inmediata de memoria RAM
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
@@ -622,9 +634,10 @@
             } catch (err) { 
                 let errorMsg = err;
                 if (typeof err === 'number') { try { errorMsg = cv.exceptionFromPtr(err).msg; } catch(e) {} }
-                alert("Fallo crítico durante el análisis visual: " + errorMsg); 
+                alert("Fallo crítico de memoria RAM o procesamiento. Intente recargar la página. Detalle técnico: " + errorMsg); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
+                // Liberación de recursos pesados
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
             }
@@ -704,6 +717,7 @@
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
                 let estiloInput = document.getElementById(`style_${pieza.id}`);
+                // Ahora lee el .value del select
                 let estilo = estiloInput ? estiloInput.value.trim().toUpperCase() : "DEFECTO";
                 if (!estilo) estilo = "DEFECTO";
 
