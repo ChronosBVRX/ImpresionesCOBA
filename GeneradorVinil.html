@@ -75,7 +75,7 @@
 
         /* MODO 1: Galería y OCR */
         .pdf-gallery-master { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; max-height: 70vh; overflow-y: auto; background-color: #0f172a; padding: 20px; border: 2px dashed var(--border-color); border-radius: 8px; flex-grow: 1; }
-        .gallery-item { position: relative; background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: transform 0.2s; }
+        .gallery-item { position: relative; background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: transform 0.2s; }
         .gallery-item:hover { transform: scale(1.05); border-color: var(--primary-color); z-index: 5; }
         .gallery-item img { max-height: 80px; max-width: 100%; object-fit: contain; background-image: linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%); background-size: 10px 10px; background-position: 0 0, 0 5px, 5px -5px, -5px 0px; border-radius: 4px; padding: 5px; }
         
@@ -85,6 +85,9 @@
         .char-mapper.ocr-doubt { border-color: var(--danger-color) !important; background-color: rgba(239, 68, 68, 0.1) !important; }
         .char-mapper.ocr-loading { border-color: var(--highlight) !important; background-color: rgba(59, 130, 246, 0.1) !important; animation: pulse 1.5s infinite; }
         
+        /* Input de estilo/color */
+        .style-mapper { width: 100% !important; font-size: 0.75rem !important; text-align: center; padding: 5px !important; border-radius: 4px; border: 1px solid var(--border-color); background-color: #0b1120; color: #cbd5e1; }
+
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
         .btn-delete-piece { position: absolute; top: -8px; right: -8px; background-color: var(--danger-color); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
@@ -162,14 +165,14 @@
                 <div class="form-group" style="margin-top: 15px;">
                     <label>3. Confirma la lectura de la IA y guarda:</label>
                     <button id="btn-save-abc" class="btn-save-abc" onclick="guardarAbecedarioSupabase()">☁️ Subir a Supabase</button>
-                    <p style="font-size: 0.8rem; color: #64748b; text-align: center;">Nota: Verifica los cuadros en rojo (La IA tuvo dudas). Borra los puntos o basura con la papelera 🗑️.</p>
+                    <p style="font-size: 0.8rem; color: #64748b; text-align: center;">Nota: Verifica los cuadros en rojo (La IA tuvo dudas). Borra los puntos o basura con la papelera 🗑️. Ajusta el "Estilo" si lo deseas.</p>
                 </div>
             </div>
 
             <div class="preview-panel">
                 <div class="canvas-header">
                     <h2 style="margin: 0;">Resultados del Escáner OCR</h2>
-                    <p>Las letras verdes fueron leídas exitosamente. Corrige las rojas si es necesario.</p>
+                    <p>La IA detecta automáticamente el color dominante y si la pieza tiene un "Patrón".</p>
                 </div>
                 <div class="pdf-gallery-master" id="pdf-gallery-master">
                     <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">
@@ -200,13 +203,19 @@
                 <div id="panel-constructor" class="form-group" style="gap: 15px;">
                     <div class="form-group">
                         <label style="color: var(--secondary-color);">Selecciona fuente de la Nube (Supabase):</label>
-                        <select id="db-font-selector">
+                        <select id="db-font-selector" onchange="actualizarSelectorEstilos()">
                             <option value="">Cargando desde la nube... ☁️</option>
                         </select>
                         <button class="btn-delete-font" onclick="borrarAbecedarioSupabase()">Eliminar fuente seleccionada de la nube</button>
                     </div>
+                    
+                    <div class="form-group" id="group-style-selector" style="display: none;">
+                        <label style="color: var(--highlight);">Selecciona Variante / Estilo:</label>
+                        <select id="db-style-selector" style="border-color: var(--highlight);"></select>
+                    </div>
+
                     <div class="form-group">
-                        <label style="color: var(--highlight);">Escribe la palabra:</label>
+                        <label style="color: #cbd5e1;">Escribe la palabra:</label>
                         <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
                     </div>
                     <div class="espaciado-letras">
@@ -325,6 +334,40 @@
                 selectorFuentesDB.innerHTML = '<option value="">-- Sube fuentes a Supabase primero --</option>';
             } else {
                 nombres.forEach(nombre => { selectorFuentesDB.innerHTML += `<option value="${nombre}">${nombre}</option>`; });
+                actualizarSelectorEstilos(); // Actualizar estilos de la primera fuente seleccionada
+            }
+        }
+
+        // NUEVA FUNCIÓN: Identifica los estilos dentro de la fuente seleccionada (Retrocompatible)
+        function actualizarSelectorEstilos() {
+            const fontName = selectorFuentesDB.value;
+            const containerStyle = document.getElementById('group-style-selector');
+            const selectorEstilo = document.getElementById('db-style-selector');
+            selectorEstilo.innerHTML = '';
+
+            if (!fontName || !baseDatosGlobal[fontName]) {
+                containerStyle.style.display = 'none';
+                return;
+            }
+
+            const fontData = baseDatosGlobal[fontName];
+            const keys = Object.keys(fontData);
+            if (keys.length === 0) return;
+
+            // Detección de formato viejo vs nuevo
+            let isOldFormat = false;
+            // Si el primer elemento del objeto tiene una propiedad "src", es formato viejo (no anidado)
+            if (fontData[keys[0]] && fontData[keys[0]].src) {
+                isOldFormat = true;
+            }
+
+            if (isOldFormat) {
+                containerStyle.style.display = 'none';
+            } else {
+                containerStyle.style.display = 'flex';
+                keys.forEach(estilo => {
+                    selectorEstilo.innerHTML += `<option value="${estilo}">${estilo}</option>`;
+                });
             }
         }
 
@@ -420,14 +463,47 @@
                         maskRoi.copyTo(maskClone); 
                         let maskData = maskClone.data;
 
+                        // Cálculo de Promedio de Color y Varianza (Para detectar patrón)
+                        let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
+
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
                             if (maskPixel === 0 || (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200)) { 
                                 data[j+3] = 0; 
-                            } 
+                            } else {
+                                // Píxel visible: acumulamos para promediar color
+                                rSum += data[j]; gSum += data[j+1]; bSum += data[j+2];
+                                opaqueCount++;
+                            }
                         }
+
+                        let isPattern = false;
+                        let hexColor = "#334155";
+                        let borderStyleColor = "#334155";
+
+                        if (opaqueCount > 0) {
+                            let rAvg = Math.round(rSum/opaqueCount);
+                            let gAvg = Math.round(gSum/opaqueCount);
+                            let bAvg = Math.round(bSum/opaqueCount);
+                            // Convierte RGB a Hexadecimal
+                            hexColor = "#" + ((1 << 24) + (rAvg << 16) + (gAvg << 8) + bAvg).toString(16).slice(1);
+                            borderStyleColor = hexColor;
+
+                            // Calcular Varianza para identificar si es sólido o tiene un patrón/logo
+                            let varianceSum = 0;
+                            for (let j = 0; j < data.length; j += 4) {
+                                if (data[j+3] > 0) {
+                                    varianceSum += Math.pow(data[j] - rAvg, 2) + Math.pow(data[j+1] - gAvg, 2) + Math.pow(data[j+2] - bAvg, 2);
+                                }
+                            }
+                            let variance = varianceSum / opaqueCount;
+                            // Umbral empírico: Más de 1000 de varianza suele implicar un segundo color o gradiente complejo
+                            isPattern = variance > 1000;
+                        }
+
+                        let etiquetaVisual = isPattern ? "PATRON " + hexColor.toUpperCase() : "SOLIDO " + hexColor.toUpperCase();
+
                         tCtx.putImageData(imgData, 0, 0);
-                        
                         maskClone.delete();
                         maskRoi.delete();
 
@@ -436,10 +512,11 @@
                         piezasExtraidasTemp.push({ id: idPieza, src: base64, propor: rect.width / rect.height });
 
                         gallery.insertAdjacentHTML('beforeend', `
-                            <div class="gallery-item" id="card_${idPieza}">
+                            <div class="gallery-item" id="card_${idPieza}" style="border-bottom: 4px solid ${borderStyleColor};">
                                 <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')" title="Descartar imagen">🗑️</button>
                                 <img src="${base64}">
                                 <input type="text" class="char-mapper ocr-loading" id="map_${idPieza}" maxlength="1" placeholder="IA...">
+                                <input type="text" class="style-mapper" id="style_${idPieza}" value="${etiquetaVisual}" title="Puedes editar este estilo manualmente">
                             </div>
                         `);
 
@@ -482,19 +559,15 @@
 
             if (!tesseractWorker) {
                 try {
-                    // Secuencia de arranque industrial segura
                     tesseractWorker = await Tesseract.createWorker();
                     await tesseractWorker.loadLanguage('eng');
                     await tesseractWorker.initialize('eng');
                     await tesseractWorker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR, 
-                        // CORRECCIÓN 1: Se eliminaron los signos '.,-' de la lista blanca. 
-                        // Solo detectará letras de la A a la Z y números del 0 al 9.
                         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ'
                     });
                 } catch(e) {
                     console.error("Error cargando Tesseract:", e);
-                    // Liberar cola si falla el inicio
                     ocrQueue.forEach(({idPieza}) => {
                         let el = document.getElementById(`map_${idPieza}`);
                         if(el) { el.classList.remove('ocr-loading'); el.classList.add('ocr-doubt'); el.placeholder = "?"; }
@@ -512,8 +585,6 @@
 
                 try {
                     const { data: { text, confidence } } = await tesseractWorker.recognize(base64Image);
-                    // CORRECCIÓN 2: Expresión regular ajustada para bloquear y limpiar cualquier signo,
-                    // asegurando que si la IA se equivoca, no imprima símbolos extraños.
                     let cleanText = text.replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/g, '').trim();
                     inputElement.classList.remove('ocr-loading');
                     
@@ -544,10 +615,23 @@
             let nombreFuente = document.getElementById('font-custom-name').value.trim();
             if (!nombreFuente) { alert("Nombre obligatorio para guardar en la Nube."); return; }
 
-            let abcNuevo = {}; let guardadas = 0;
+            // MODIFICADO: Ahora agrupamos las letras bajo su "Estilo" correspondiente
+            let abcNuevo = {}; 
+            let guardadas = 0;
+
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
-                if (char) { abcNuevo[char] = { src: pieza.src, propor: pieza.propor }; guardadas++; }
+                let estiloInput = document.getElementById(`style_${pieza.id}`);
+                let estilo = estiloInput ? estiloInput.value.trim().toUpperCase() : "DEFECTO";
+                if (!estilo) estilo = "DEFECTO";
+
+                if (char) { 
+                    if (!abcNuevo[estilo]) {
+                        abcNuevo[estilo] = {};
+                    }
+                    abcNuevo[estilo][char] = { src: pieza.src, propor: pieza.propor }; 
+                    guardadas++; 
+                }
             });
             
             if(guardadas > 0) {
@@ -559,7 +643,9 @@
                     if (error) throw error;
 
                     baseDatosGlobal[nombreFuente] = abcNuevo;
-                    actualizarSelectorFuentes(); selectorFuentesDB.value = nombreFuente;
+                    actualizarSelectorFuentes(); 
+                    selectorFuentesDB.value = nombreFuente;
+                    actualizarSelectorEstilos(); // Refrescar menú de estilos en producción
                     
                     document.getElementById('font-custom-name').value = "";
                     document.getElementById('pdf-gallery-master').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">Sube otro PDF para crear más fuentes.</div>';
@@ -608,7 +694,20 @@
             const nombreFuenteSelect = selectorFuentesDB.value;
             if (!nombreFuenteSelect) { alert("Selecciona una fuente de Supabase."); return; }
 
-            const abcAUsar = baseDatosGlobal[nombreFuenteSelect];
+            const fontData = baseDatosGlobal[nombreFuenteSelect];
+            const containerStyle = document.getElementById('group-style-selector');
+            let abcAUsar;
+
+            // Detectamos si la fuente tiene estilos o es una fuente antigua plana
+            if (containerStyle.style.display !== 'none') {
+                const estiloSeleccionado = document.getElementById('db-style-selector').value;
+                abcAUsar = fontData[estiloSeleccionado];
+            } else {
+                abcAUsar = fontData; // Backwards compatibility para bases de datos viejas
+            }
+
+            if (!abcAUsar) { alert("No se encontró información para el estilo seleccionado."); return; }
+
             const palabra = document.getElementById('palabra-construida').value.toUpperCase();
             const altoCm = parseFloat(document.getElementById('alto-numero-input-const').value);
             const cantidad = parseInt(document.getElementById('cantidad-input-const').value) || 1;
@@ -631,8 +730,11 @@
             }
             if(caracteresArmados.length === 0) return;
 
+            // Extraemos info visual para la cola
+            let styleLabel = containerStyle.style.display !== 'none' ? ` (${document.getElementById('db-style-selector').value})` : '';
+
             colaProduccion.push({
-                tipo: 'palabra_armada', nombreMostrar: `[${nombreFuenteSelect}] "${palabra}"`,
+                tipo: 'palabra_armada', nombreMostrar: `[${nombreFuenteSelect}${styleLabel}] "${palabra}"`,
                 letras: caracteresArmados, ancho: currentX - espaciadoPx, alto: altoPx, 
                 offsetX: 0, offsetY: 0, area: (currentX - espaciadoPx) * altoPx, cantidad: cantidad
             });
