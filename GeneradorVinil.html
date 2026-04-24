@@ -469,7 +469,7 @@
                 // SISTEMA ANTI-OOM (Out Of Memory): Escalado dinámico seguro
                 const baseViewport = page.getViewport({scale: 1.0});
                 let dynamicScale = 3.0; 
-                const maxSafeDimension = 2800; // Limite optimizado para evitar colapso de memoria RAM Wasm
+                const maxSafeDimension = 2800; // Limite optimizado para evitar colapso de memoria RAM
                 const largestSide = Math.max(baseViewport.width, baseViewport.height);
                 
                 if (largestSide * dynamicScale > maxSafeDimension) {
@@ -478,7 +478,6 @@
                 
                 const viewport = page.getViewport({scale: dynamicScale});
                 const canvas = document.getElementById('internal-pdf-canvas');
-                // Aceleración de hardware
                 const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 canvas.width = viewport.width; canvas.height = viewport.height;
                 
@@ -502,12 +501,11 @@
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
                 thresh = new cv.Mat(); 
-                // CORRECCIÓN: Filtro Canny Edge para ignorar fondos de colores/rayas y buscar siluetas
                 cv.Canny(gray, thresh, 50, 200, 3, false);
                 
-                // Morfología: Engrosar los bordes encontrados para cerrar grietas en los números
-                kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
-                cv.dilate(thresh, thresh, kernel, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+                // CORRECCIÓN 2: Cierre morfológico estricto (3x3) para no fusionar letras cercanas
+                kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+                cv.morphologyEx(thresh, thresh, cv.MORPH_CLOSE, kernel);
 
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
@@ -527,20 +525,17 @@
                     let area = cv.contourArea(cnt);
                     let rect = cv.boundingRect(cnt);
 
-                    // FILTRO ANTI-FONDOS: Ignorar cajas que sean casi del tamaño de todo el archivo (como fondos o marcos)
                     let isHuge = (rect.width > mask.cols * 0.85) || (rect.height > mask.rows * 0.85);
                     let isTooSmall = rect.width < 10 || rect.height < 10;
                     
                     if (area > 80 && !isHuge && !isTooSmall) {
                         
-                        // Candado matemático anti-desbordamiento
                         rect.x = Math.max(0, rect.x);
                         rect.y = Math.max(0, rect.y);
                         rect.width = Math.min(mask.cols - rect.x, rect.width);
                         rect.height = Math.min(mask.rows - rect.y, rect.height);
 
                         mask.setTo(new cv.Scalar(0)); 
-                        // El parámetro -1 llena el contorno detectado por Canny, recortando la forma perfecta
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
                         
                         let tCanvas = document.createElement('canvas'); 
@@ -558,10 +553,11 @@
 
                         let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
 
+                        // CORRECCIÓN 1: Se eliminó la regla que borraba los colores blancos o claros
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
-                            if (maskPixel === 0 || (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200)) { 
-                                data[j+3] = 0; 
+                            if (maskPixel === 0) { 
+                                data[j+3] = 0; // Solo borramos lo que está fuera de la máscara (el fondo)
                             } else {
                                 rSum += data[j]; gSum += data[j+1]; bSum += data[j+2];
                                 opaqueCount++;
@@ -570,11 +566,15 @@
 
                         let borderStyleColor = "#334155";
                         let clusterIndex = -1;
+                        let avgBrightness = 0;
 
                         if (opaqueCount > 0) {
                             let rAvg = Math.round(rSum/opaqueCount);
                             let gAvg = Math.round(gSum/opaqueCount);
                             let bAvg = Math.round(bSum/opaqueCount);
+                            
+                            // Calculamos el brillo general para saber si el texto es blanco/claro
+                            avgBrightness = (rAvg + gAvg + bAvg) / 3;
                             
                             let rFinal = rAvg, gFinal = gAvg, bFinal = bAvg;
 
@@ -623,19 +623,41 @@
                             </div>
                         `);
 
+                        // CORRECCIÓN 3: Preparación del lienzo OCR (Inversión inteligente)
                         let ocrCanvas = document.createElement('canvas');
                         let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
                         ocrCanvas.height = rect.height + (pad * 2);
                         let ocrCtx = ocrCanvas.getContext('2d', { willReadFrequently: true });
-                        ocrCtx.fillStyle = '#ffffff';
-                        ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
-                        ocrCtx.drawImage(tCanvas, pad, pad);
+                        
+                        let isLightText = avgBrightness > 128; // Si el texto es predominantemente claro/blanco
+
+                        if (isLightText) {
+                            // Tesseract necesita contraste. Ponemos fondo negro.
+                            ocrCtx.fillStyle = '#000000';
+                            ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+                            ocrCtx.drawImage(tCanvas, pad, pad);
+                            
+                            // Invertimos la imagen para que sea texto Negro sobre fondo Blanco (óptimo para OCR)
+                            let ocrImgData = ocrCtx.getImageData(0, 0, ocrCanvas.width, ocrCanvas.height);
+                            let ocrData = ocrImgData.data;
+                            for(let p = 0; p < ocrData.length; p += 4) {
+                                ocrData[p] = 255 - ocrData[p];       // R
+                                ocrData[p+1] = 255 - ocrData[p+1];   // G
+                                ocrData[p+2] = 255 - ocrData[p+2];   // B
+                            }
+                            ocrCtx.putImageData(ocrImgData, 0, 0);
+                        } else {
+                            // Texto oscuro normal, fondo blanco estándar
+                            ocrCtx.fillStyle = '#ffffff';
+                            ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+                            ocrCtx.drawImage(tCanvas, pad, pad);
+                        }
                         
                         ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
                         piezacount++;
                     }
-                    cnt.delete(); // Limpieza inmediata de memoria RAM
+                    cnt.delete();
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
@@ -647,7 +669,6 @@
                 alert("Fallo crítico de memoria RAM o procesamiento. Intente recargar la página. Detalle técnico: " + errorMsg); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
-                // Liberación de recursos pesados
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete(); if(kernel) kernel.delete();
             }
@@ -727,7 +748,6 @@
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
                 let estiloInput = document.getElementById(`style_${pieza.id}`);
-                // Ahora lee el .value del select
                 let estilo = estiloInput ? estiloInput.value.trim().toUpperCase() : "DEFECTO";
                 if (!estilo) estilo = "DEFECTO";
 
