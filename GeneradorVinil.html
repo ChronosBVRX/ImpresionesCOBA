@@ -488,7 +488,7 @@
         }
 
         async function extraerMascaraExacta(canvas) {
-            let src, gray, thresh, contours, hierarchy, mask, maskClone;
+            let src, gray, tophat, blackhat, diff, thresh, contours, hierarchy, mask, maskClone, bgKernel, noiseKernel;
             
             try {
                 let rawStyles = document.getElementById('font-styles-input').value;
@@ -499,13 +499,28 @@
                 gray = new cv.Mat(); 
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
+                // SISTEMA ANTI-FONDOS: Extracción Morfológica TopHat + BlackHat
+                // Esto borra automáticamente cualquier franja de color o gradiente de fondo, dejando solo el texto aislado.
+                bgKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(25, 25));
+                tophat = new cv.Mat();
+                blackhat = new cv.Mat();
+                diff = new cv.Mat();
+                
+                cv.morphologyEx(gray, tophat, cv.MORPH_TOPHAT, bgKernel);
+                cv.morphologyEx(gray, blackhat, cv.MORPH_BLACKHAT, bgKernel);
+                cv.add(tophat, blackhat, diff); 
+                
                 thresh = new cv.Mat(); 
-                cv.Canny(gray, thresh, 50, 200, 3, false);
-                // SE ELIMINÓ LA DILATACIÓN PARA EVITAR LA FUSIÓN DE NÚMEROS (1234 pegados)
+                cv.threshold(diff, thresh, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+                
+                // Limpieza de ruido leve para evitar que números cercanos se fusionen
+                noiseKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+                cv.morphologyEx(thresh, thresh, cv.MORPH_OPEN, noiseKernel);
 
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
-                // CORRECCIÓN 1: Usar RETR_CCOMP para recuperar los agujeros internos (padres e hijos)
+                
+                // RETR_CCOMP vital para capturar tanto el contorno exterior como los agujeros interiores
                 cv.findContours(thresh, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
@@ -518,7 +533,8 @@
                 const umbralDistanciaColor = 75; 
 
                 for (let i = 0; i < contours.size(); ++i) {
-                    // CORRECCIÓN 2: Si tiene un padre, es un agujero. Lo ignoramos en el ciclo principal.
+                    
+                    // Solo iniciar el proceso si es un contorno RAÍZ (el borde exterior del número)
                     let parentIdx = hierarchy.intPtr(i, 3);
                     if (parentIdx !== -1) continue; 
 
@@ -529,9 +545,9 @@
                     let isHuge = (rect.width > mask.cols * 0.85) || (rect.height > mask.rows * 0.85);
                     let isTooSmall = rect.width < 15 || rect.height < 15;
                     let aspect = rect.width / rect.height;
-                    let isWeirdShape = aspect > 5.0 || aspect < 0.1; // Filtro de franjas atípicas
+                    let isWeirdShape = aspect > 6.0 || aspect < 0.1;
                     
-                    if (area > 50 && !isHuge && !isTooSmall && !isWeirdShape) {
+                    if (area > 80 && !isHuge && !isTooSmall && !isWeirdShape) {
                         
                         rect.x = Math.max(0, rect.x);
                         rect.y = Math.max(0, rect.y);
@@ -540,10 +556,10 @@
 
                         mask.setTo(new cv.Scalar(0)); 
                         
-                        // CORRECCIÓN 3: Dibuja el borde exterior relleno de blanco
+                        // 1. Dibujar silueta sólida del número
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
                         
-                        // CORRECCIÓN 4: "Perforar" los agujeros (hijos) rellenándolos de negro
+                        // 2. PERFORAR LOS AGUJEROS: Buscar todos los hijos y dibujarlos de negro encima de la silueta
                         let childIdx = hierarchy.intPtr(i, 2);
                         while (childIdx !== -1) {
                             cv.drawContours(mask, contours, childIdx, new cv.Scalar(0), -1, cv.LINE_8, hierarchy, 0);
@@ -565,10 +581,11 @@
 
                         let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
 
+                        // Aplicar máscara asegurando que solo se vuelva transparente el verdadero fondo y los agujeros perforados
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
                             if (maskPixel === 0) { 
-                                data[j+3] = 0; // Transparencia aplicada SOLO a lo que está fuera de la máscara y dentro de los agujeros
+                                data[j+3] = 0; 
                             } else {
                                 rSum += data[j]; gSum += data[j+1]; bSum += data[j+2];
                                 opaqueCount++;
@@ -585,6 +602,7 @@
                             let bAvg = Math.round(bSum/opaqueCount);
                             
                             avgBrightness = (rAvg + gAvg + bAvg) / 3;
+                            
                             let rFinal = rAvg, gFinal = gAvg, bFinal = bAvg;
 
                             for (let c = 0; c < paletaDetectada.length; c++) {
@@ -632,7 +650,7 @@
                             </div>
                         `);
 
-                        // CORRECCIÓN 5: Inversión de imagen para que la IA lea "Texto Negro sobre Blanco" si el original era blanco
+                        // INVERSIÓN OCR: Si el número es muy claro, lo invertimos a negro sobre blanco solo para la lectura del Tesseract
                         let ocrCanvas = document.createElement('canvas');
                         let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
@@ -663,7 +681,6 @@
                         ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
                         piezacount++;
                     }
-                    cnt.delete();
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
@@ -675,8 +692,11 @@
                 alert("Fallo crítico de memoria RAM o procesamiento. Intente recargar la página. Detalle técnico: " + errorMsg); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
+                // Autolimpieza estricta de memoria RAM Wasm
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
+                if(tophat) tophat.delete(); if(blackhat) blackhat.delete(); if(diff) diff.delete(); 
+                if(bgKernel) bgKernel.delete(); if(noiseKernel) noiseKernel.delete();
             }
         }
 
