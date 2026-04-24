@@ -188,7 +188,7 @@
     <div class="top-navbar">
         <div class="brand">
             <h1>CHRONOS PRINTFORGE</h1>
-            <span class="developer-credit">ADVANCED GANG SHEET STUDIO</span>
+            <span class="developer-credit">ADVANCED GANG SHEET STUDIO | DEVELOPED BY EDUARDO BOLAÑOS</span>
         </div>
         <div class="nav-buttons">
             <button class="nav-btn active" id="nav-btn-extractor" onclick="switchEnvironment('extractor')">Módulo 1: Extracción OCR</button>
@@ -482,7 +482,6 @@
             let src, gray, thresh, contours, hierarchy, mask, maskClone;
             
             try {
-                // Obtener estilos definidos por el usuario
                 let rawStyles = document.getElementById('font-styles-input').value;
                 let estilosUsuario = rawStyles.split(',').map(s => s.trim().toUpperCase()).filter(s => s !== '');
                 if (estilosUsuario.length === 0) estilosUsuario = ["DEFECTO"];
@@ -504,7 +503,6 @@
                 
                 mask = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
 
-                // Memoria de colores (Clustering Euclidiano para asistir a la IA)
                 let paletaDetectada = [];
                 const umbralDistanciaColor = 75; 
 
@@ -514,6 +512,12 @@
                     
                     if (area > 80) {
                         let rect = cv.boundingRect(cnt);
+                        
+                        rect.x = Math.max(0, rect.x);
+                        rect.y = Math.max(0, rect.y);
+                        rect.width = Math.min(mask.cols - rect.x, rect.width);
+                        rect.height = Math.min(mask.rows - rect.y, rect.height);
+
                         mask.setTo(new cv.Scalar(0)); 
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
                         
@@ -552,7 +556,6 @@
                             
                             let rFinal = rAvg, gFinal = gAvg, bFinal = bAvg;
 
-                            // Buscar el grupo de color más cercano
                             for (let c = 0; c < paletaDetectada.length; c++) {
                                 let colorData = paletaDetectada[c];
                                 let dist = Math.sqrt(Math.pow(rAvg - colorData.r, 2) + Math.pow(gAvg - colorData.g, 2) + Math.pow(bAvg - colorData.b, 2));
@@ -565,7 +568,6 @@
                                 }
                             }
 
-                            // Si es un color nuevo, crear nuevo grupo
                             if (clusterIndex === -1) {
                                 paletaDetectada.push({r: rAvg, g: gAvg, b: bAvg});
                                 clusterIndex = paletaDetectada.length - 1;
@@ -574,10 +576,8 @@
                             borderStyleColor = "#" + ((1 << 24) + (rFinal << 16) + (gFinal << 8) + bFinal).toString(16).slice(1).toUpperCase();
                         }
 
-                        // La IA predice a qué estilo pertenece según el orden en que descubrió los colores
                         let guessedStyle = estilosUsuario[Math.min(Math.max(0, clusterIndex), estilosUsuario.length - 1)];
 
-                        // Generar las opciones del menú desplegable
                         let optionsHtml = estilosUsuario.map(estilo => 
                             `<option value="${estilo}" ${estilo === guessedStyle ? 'selected' : ''}>${estilo}</option>`
                         ).join('');
@@ -613,13 +613,16 @@
                         ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
                         piezacount++;
                     }
+                    cnt.delete();
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
                 if (piezacount === 0) gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">El análisis no detectó contornos válidos.</div>';
 
             } catch (err) { 
-                alert("Fallo crítico durante el análisis visual: " + err); 
+                let errorMsg = err;
+                if (typeof err === 'number') { try { errorMsg = cv.exceptionFromPtr(err).msg; } catch(e) {} }
+                alert("Fallo crítico durante el análisis visual: " + errorMsg); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
@@ -701,7 +704,6 @@
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
                 let estiloInput = document.getElementById(`style_${pieza.id}`);
-                // Lectura dinámica de la variante asignada
                 let estilo = estiloInput ? estiloInput.value.trim().toUpperCase() : "DEFECTO";
                 if (!estilo) estilo = "DEFECTO";
 
