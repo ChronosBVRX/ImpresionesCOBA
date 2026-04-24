@@ -213,7 +213,7 @@
                     <button class="type-btn" id="btn-tab-imagen" onclick="cambiarTabProd('imagen')">Imagen Independiente</button>
                 </div>
 
-                <div id="panel-constructor" class="form-group" style="gap: 15px;">
+                <div id="panel-constructor" class="form-group" style="gap: 10px;">
                     <div class="form-group">
                         <label style="color: var(--secondary-color);">Seleccionar fuente de Base de Datos:</label>
                         <select id="db-font-selector" onchange="actualizarSelectorEstilos()">
@@ -227,18 +227,40 @@
                         <select id="db-style-selector" style="border-color: var(--highlight);"></select>
                     </div>
 
-                    <div class="form-group">
-                        <label style="color: #cbd5e1;">Texto a construir:</label>
-                        <input type="text" id="palabra-construida" placeholder="Ej. RONALDO 7">
+                    <div class="dimensions-container" style="margin-bottom: 0px;">
+                        <div class="form-group" style="flex: 2;">
+                            <label style="color: #cbd5e1;">Texto (Nombre):</label>
+                            <input type="text" id="nombre-construido" placeholder="Ej. RONALDO">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Alto (cm):</label>
+                            <input type="number" id="alto-nombre-input" value="5.5" min="1" step="0.5">
+                        </div>
                     </div>
-                    <div class="espaciado-letras">
+
+                    <div class="dimensions-container" style="margin-bottom: 0px;">
+                        <div class="form-group" style="flex: 2;">
+                            <label style="color: #cbd5e1;">Texto (Número):</label>
+                            <input type="text" id="numero-construido" placeholder="Ej. 7">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Alto (cm):</label>
+                            <input type="number" id="alto-numero-input" value="22" min="1" step="0.5">
+                        </div>
+                    </div>
+
+                    <div class="espaciado-letras" style="margin-top: 5px;">
                         <label>Interlineado / Separación:</label>
-                        <input type="range" id="letter-spacing" min="0" max="50" value="10" style="width: 50%;">
+                        <input type="range" id="letter-spacing" min="0" max="50" value="10" style="width: 100%;">
                     </div>
-                    <div class="dimensions-container" style="margin-top: 10px;">
-                        <div class="form-group"><label>Altura de Salida (cm):</label><input type="number" id="alto-numero-input-const" value="22" min="1" step="0.5"></div>
-                        <div class="form-group"><label>Cantidad:</label><input type="number" id="cantidad-input-const" value="1" min="1"></div>
+                    
+                    <div class="dimensions-container" style="margin-top: 5px;">
+                        <div class="form-group">
+                            <label>Cantidad (Pares / Elementos):</label>
+                            <input type="number" id="cantidad-input-const" value="1" min="1">
+                        </div>
                     </div>
+
                     <button class="btn-add" onclick="agregarAColaConstructor()">Añadir a Cola de Producción</button>
                 </div>
 
@@ -653,7 +675,6 @@
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
                 let estiloInput = document.getElementById(`style_${pieza.id}`);
-                // Ahora lee el .value del select
                 let estilo = estiloInput ? estiloInput.value.trim().toUpperCase() : "DEFECTO";
                 if (!estilo) estilo = "DEFECTO";
 
@@ -722,6 +743,7 @@
             svgWorkspace.setAttribute('viewBox', `0 0 ${ancho * PIXELES_POR_CM} ${alto * PIXELES_POR_CM}`);
         }
 
+        // CORRECCIÓN APLICADA: Esta función ahora procesa nombres y números por separado para optimizar el gang sheet
         function agregarAColaConstructor() {
             const nombreFuenteSelect = selectorFuentesDB.value;
             if (!nombreFuenteSelect) { alert("Seleccione un registro válido de la base de datos."); return; }
@@ -739,35 +761,56 @@
 
             if (!abcAUsar) { alert("No se localizó información para la variante seleccionada."); return; }
 
-            const palabra = document.getElementById('palabra-construida').value.toUpperCase();
-            const altoCm = parseFloat(document.getElementById('alto-numero-input-const').value);
+            const nombre = document.getElementById('nombre-construido').value.toUpperCase();
+            const altoNombreCm = parseFloat(document.getElementById('alto-nombre-input').value);
+            
+            const numero = document.getElementById('numero-construido').value.toUpperCase();
+            const altoNumeroCm = parseFloat(document.getElementById('alto-numero-input').value);
+
             const cantidad = parseInt(document.getElementById('cantidad-input-const').value) || 1;
-            const espaciadoPx = parseInt(document.getElementById('letter-spacing').value) * (altoCm/10); 
+            const espaciadoBase = parseInt(document.getElementById('letter-spacing').value); 
 
-            if (!palabra) return;
-
-            const altoPx = altoCm * PIXELES_POR_CM;
-            let currentX = 0; let caracteresArmados = [];
-
-            for (let i = 0; i < palabra.length; i++) {
-                let char = palabra[i];
-                if (char === ' ') { currentX += (altoPx * 0.3); continue; }
-                let dataLetra = abcAUsar[char];
-                if (!dataLetra) continue;
-                
-                let anchoLetraPx = altoPx * dataLetra.propor;
-                caracteresArmados.push({ char: char, src: dataLetra.src, x: currentX, w: anchoLetraPx, h: altoPx });
-                currentX += anchoLetraPx + espaciadoPx;
-            }
-            if(caracteresArmados.length === 0) return;
+            if (!nombre && !numero) { alert("Debe ingresar un nombre o un número para construir."); return; }
 
             let styleLabel = containerStyle.style.display !== 'none' ? ` (${document.getElementById('db-style-selector').value})` : '';
 
-            colaProduccion.push({
-                tipo: 'palabra_armada', nombreMostrar: `[${nombreFuenteSelect}${styleLabel}] "${palabra}"`,
-                letras: caracteresArmados, ancho: currentX - espaciadoPx, alto: altoPx, 
-                offsetX: 0, offsetY: 0, area: (currentX - espaciadoPx) * altoPx, cantidad: cantidad
-            });
+            // Función interna para procesar la palabra y mandarla a la cola
+            const procesarElemento = (palabra, altoCm, tipoEtiqueta) => {
+                if (!palabra) return;
+                
+                const altoPx = altoCm * PIXELES_POR_CM;
+                const espaciadoPx = espaciadoBase * (altoCm/10); 
+                let currentX = 0; let caracteresArmados = [];
+
+                for (let i = 0; i < palabra.length; i++) {
+                    let char = palabra[i];
+                    if (char === ' ') { currentX += (altoPx * 0.3); continue; }
+                    let dataLetra = abcAUsar[char];
+                    if (!dataLetra) continue;
+                    
+                    let anchoLetraPx = altoPx * dataLetra.propor;
+                    caracteresArmados.push({ char: char, src: dataLetra.src, x: currentX, w: anchoLetraPx, h: altoPx });
+                    currentX += anchoLetraPx + espaciadoPx;
+                }
+                
+                if(caracteresArmados.length > 0) {
+                    colaProduccion.push({
+                        tipo: 'palabra_armada', 
+                        nombreMostrar: `[${nombreFuenteSelect}${styleLabel}] ${tipoEtiqueta}: "${palabra}"`,
+                        letras: caracteresArmados, 
+                        ancho: currentX - espaciadoPx, 
+                        alto: altoPx, 
+                        offsetX: 0, offsetY: 0, 
+                        area: (currentX - espaciadoPx) * altoPx, 
+                        cantidad: cantidad
+                    });
+                }
+            };
+
+            // Ejecutamos para ambos campos (si están llenos)
+            procesarElemento(nombre, altoNombreCm, "Nombre");
+            procesarElemento(numero, altoNumeroCm, "Número");
+
             actualizarVistaCola();
         }
 
@@ -901,35 +944,27 @@
 
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
         
-        // CORRECCIÓN APLICADA: Función descargarPDF reescrita para asegurar fidelidad 100% fotográfica del lienzo
         function descargarPDF() {
             document.getElementById('loader').style.display = 'block';
             setTimeout(() => {
                 const anchoCm = parseFloat(anchoInput.value) || 57;
                 const altoCm = parseFloat(altoInput.value) || 112;
 
-                // 1. Creamos un canvas temporal en alta resolución para asegurar calidad
                 const canvas = document.createElement("canvas");
-                canvas.width = Math.round(anchoCm * 59.055); // Equivalente aprox a 150 DPI
+                canvas.width = Math.round(anchoCm * 59.055);
                 canvas.height = Math.round(altoCm * 59.055);
                 const ctx = canvas.getContext("2d");
 
-                // 2. Coloreamos el fondo de blanco (vital para evitar transparencias negras en PDF)
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // 3. Serializamos el lienzo SVG tal cual está
                 const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace));
                 const img = new Image();
 
                 img.onload = function() {
-                    // 4. Dibujamos la imagen exacta sobre el canvas temporal
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    // 5. Lo convertimos en datos fotográficos JPEG (reduce el peso final del PDF)
                     const imgData = canvas.toDataURL("image/jpeg", 1.0);
 
-                    // 6. Generamos el PDF e incrustamos la fotografía ocupando todo el documento
                     const { jsPDF } = window.jspdf;
                     const pdf = new jsPDF({
                         orientation: anchoCm > altoCm ? 'landscape' : 'portrait',
