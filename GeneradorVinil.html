@@ -439,6 +439,10 @@
                 
                 mask = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
 
+                // CORRECCIÓN CLAVE: Memoria de colores (Clustering)
+                let paletaDetectada = [];
+                const umbralDistanciaColor = 75; // Tolerancia Euclidiana amplia para agrupar variaciones visuales imperceptibles
+
                 for (let i = 0; i < contours.size(); ++i) {
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
@@ -482,14 +486,29 @@
                             let gAvg = Math.round(gSum/opaqueCount);
                             let bAvg = Math.round(bSum/opaqueCount);
                             
-                            // CORRECCIÓN CLAVE: Tolerancia de Color (Cuantización)
-                            // Redondeamos los RGB a intervalos de 35 para que tonos similares caigan en la misma cubeta.
-                            const tolerancia = 35;
-                            let rQ = Math.min(255, Math.max(0, Math.round(rAvg / tolerancia) * tolerancia));
-                            let gQ = Math.min(255, Math.max(0, Math.round(gAvg / tolerancia) * tolerancia));
-                            let bQ = Math.min(255, Math.max(0, Math.round(bAvg / tolerancia) * tolerancia));
+                            // Smart Snap: Buscar si ya hemos guardado un color similar en esta sesión
+                            let rFinal = rAvg, gFinal = gAvg, bFinal = bAvg;
+                            let colorEncontrado = null;
 
-                            hexColor = "#" + ((1 << 24) + (rQ << 16) + (gQ << 8) + bQ).toString(16).slice(1);
+                            for (let c of paletaDetectada) {
+                                let dist = Math.sqrt(Math.pow(rAvg - c.r, 2) + Math.pow(gAvg - c.g, 2) + Math.pow(bAvg - c.b, 2));
+                                if (dist < umbralDistanciaColor) {
+                                    colorEncontrado = c;
+                                    break;
+                                }
+                            }
+
+                            if (colorEncontrado) {
+                                // Forzamos a usar el mismo color exacto del grupo
+                                rFinal = colorEncontrado.r;
+                                gFinal = colorEncontrado.g;
+                                bFinal = colorEncontrado.b;
+                            } else {
+                                // Es un color nuevo, lo registramos en la paleta
+                                paletaDetectada.push({r: rAvg, g: gAvg, b: bAvg});
+                            }
+
+                            hexColor = "#" + ((1 << 24) + (rFinal << 16) + (gFinal << 8) + bFinal).toString(16).slice(1).toUpperCase();
                             borderStyleColor = hexColor;
 
                             let varianceSum = 0;
@@ -499,10 +518,12 @@
                                 }
                             }
                             let variance = varianceSum / opaqueCount;
-                            isPattern = variance > 1000;
+                            
+                            // Varianza ampliada a 2500 para evitar que bordes difuminados engañen al sistema
+                            isPattern = variance > 2500; 
                         }
 
-                        let etiquetaVisual = isPattern ? "PATRON " + hexColor.toUpperCase() : "SOLIDO " + hexColor.toUpperCase();
+                        let etiquetaVisual = isPattern ? "PATRON " + hexColor : "SOLIDO " + hexColor;
 
                         tCtx.putImageData(imgData, 0, 0);
                         maskClone.delete();
