@@ -7,7 +7,6 @@
     
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.3/svg2pdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
@@ -901,7 +900,51 @@
         svgWorkspace.addEventListener('touchstart', (e) => { }, {passive: false});
 
         function descargarPNG() { document.getElementById('loader').style.display = 'block'; setTimeout(() => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const canvas = document.createElement("canvas"); canvas.width = Math.round(anchoCm * 59.055); canvas.height = Math.round(altoCm * 59.055); const ctx = canvas.getContext("2d"); const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace)); const img = new Image(); img.onload = function() { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `GangSheet_Produccion.png`; link.href = canvas.toDataURL("image/png"); link.click(); document.getElementById('loader').style.display = 'none'; }; img.src = svgBase64; }, 50); }
-        function descargarPDF() { document.getElementById('loader').style.display = 'block'; setTimeout(async () => { const anchoCm = parseFloat(anchoInput.value) || 57; const altoCm = parseFloat(altoInput.value) || 112; const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: anchoCm > altoCm ? 'landscape' : 'portrait', unit: 'cm', format: [anchoCm, altoCm] }); await pdf.svg(svgWorkspace, { x: 0, y: 0, width: anchoCm, height: altoCm }); pdf.save(`GangSheet_Produccion.pdf`); document.getElementById('loader').style.display = 'none'; }, 50); }
+        
+        // CORRECCIÓN APLICADA: Función descargarPDF reescrita para asegurar fidelidad 100% fotográfica del lienzo
+        function descargarPDF() {
+            document.getElementById('loader').style.display = 'block';
+            setTimeout(() => {
+                const anchoCm = parseFloat(anchoInput.value) || 57;
+                const altoCm = parseFloat(altoInput.value) || 112;
+
+                // 1. Creamos un canvas temporal en alta resolución para asegurar calidad
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.round(anchoCm * 59.055); // Equivalente aprox a 150 DPI
+                canvas.height = Math.round(altoCm * 59.055);
+                const ctx = canvas.getContext("2d");
+
+                // 2. Coloreamos el fondo de blanco (vital para evitar transparencias negras en PDF)
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 3. Serializamos el lienzo SVG tal cual está
+                const svgBase64 = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svgWorkspace));
+                const img = new Image();
+
+                img.onload = function() {
+                    // 4. Dibujamos la imagen exacta sobre el canvas temporal
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // 5. Lo convertimos en datos fotográficos JPEG (reduce el peso final del PDF)
+                    const imgData = canvas.toDataURL("image/jpeg", 1.0);
+
+                    // 6. Generamos el PDF e incrustamos la fotografía ocupando todo el documento
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: anchoCm > altoCm ? 'landscape' : 'portrait',
+                        unit: 'cm',
+                        format: [anchoCm, altoCm]
+                    });
+
+                    pdf.addImage(imgData, 'JPEG', 0, 0, anchoCm, altoCm);
+                    pdf.save(`GangSheet_Produccion.pdf`);
+                    
+                    document.getElementById('loader').style.display = 'none';
+                };
+                img.src = svgBase64;
+            }, 50);
+        }
         
         window.onload = function() { actualizarLienzo(); inicializarSupabase(); };
     </script>
