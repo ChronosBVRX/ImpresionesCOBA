@@ -490,7 +490,7 @@
         }
 
         async function extraerMascaraExacta(canvas) {
-            let src, gray, thresh, contours, hierarchy, mask, maskClone;
+            let src, gray, thresh, contours, hierarchy, mask, maskClone, kernel;
             
             try {
                 let rawStyles = document.getElementById('font-styles-input').value;
@@ -502,8 +502,13 @@
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
                 thresh = new cv.Mat(); 
-                cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
+                // CORRECCIÓN: Filtro Canny Edge para ignorar fondos de colores/rayas y buscar siluetas
+                cv.Canny(gray, thresh, 50, 200, 3, false);
                 
+                // Morfología: Engrosar los bordes encontrados para cerrar grietas en los números
+                kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+                cv.dilate(thresh, thresh, kernel, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
                 cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
@@ -520,17 +525,22 @@
                 for (let i = 0; i < contours.size(); ++i) {
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
+                    let rect = cv.boundingRect(cnt);
+
+                    // FILTRO ANTI-FONDOS: Ignorar cajas que sean casi del tamaño de todo el archivo (como fondos o marcos)
+                    let isHuge = (rect.width > mask.cols * 0.85) || (rect.height > mask.rows * 0.85);
+                    let isTooSmall = rect.width < 10 || rect.height < 10;
                     
-                    if (area > 80) {
-                        let rect = cv.boundingRect(cnt);
+                    if (area > 80 && !isHuge && !isTooSmall) {
                         
-                        // Candado matemático: previene recortes fuera del lienzo
+                        // Candado matemático anti-desbordamiento
                         rect.x = Math.max(0, rect.x);
                         rect.y = Math.max(0, rect.y);
                         rect.width = Math.min(mask.cols - rect.x, rect.width);
                         rect.height = Math.min(mask.rows - rect.y, rect.height);
 
                         mask.setTo(new cv.Scalar(0)); 
+                        // El parámetro -1 llena el contorno detectado por Canny, recortando la forma perfecta
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
                         
                         let tCanvas = document.createElement('canvas'); 
@@ -629,7 +639,7 @@
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
-                if (piezacount === 0) gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">El análisis no detectó contornos válidos.</div>';
+                if (piezacount === 0) gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">El análisis no detectó contornos válidos. Verifique el archivo PDF.</div>';
 
             } catch (err) { 
                 let errorMsg = err;
@@ -639,7 +649,7 @@
             } finally {
                 // Liberación de recursos pesados
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
-                if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
+                if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete(); if(kernel) kernel.delete();
             }
         }
 
