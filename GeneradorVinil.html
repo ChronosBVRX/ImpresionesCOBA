@@ -88,9 +88,10 @@
         .char-mapper.ocr-doubt { border-color: var(--danger-color) !important; background-color: rgba(239, 68, 68, 0.1) !important; }
         .char-mapper.ocr-loading { border-color: var(--highlight) !important; background-color: rgba(59, 130, 246, 0.1) !important; animation: pulse 1.5s infinite; }
         
-        /* Input de estilo/color */
-        .style-mapper { width: 100% !important; font-size: 0.75rem !important; text-align: center; padding: 5px !important; border-radius: 4px; border: 1px solid var(--border-color); background-color: #0b1120; color: #cbd5e1; font-weight: bold; }
-        .style-mapper:focus { border-color: var(--primary-color); outline: none; }
+        /* Selector de Estilo Manual/IA */
+        select.style-mapper { width: 100% !important; font-size: 0.75rem !important; text-align: center; padding: 5px !important; border-radius: 4px; border: 1px solid var(--border-color); background-color: #0b1120; color: #cbd5e1; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        select.style-mapper:focus { border-color: var(--primary-color); outline: none; }
+        select.style-mapper option { background-color: #1e293b; color: white; }
 
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
@@ -158,11 +159,17 @@
                 
                 <div class="form-group" style="margin-top: 10px;">
                     <label style="color: var(--primary-color);">1. Nombre para la tipografía:</label>
-                    <input type="text" id="font-custom-name" placeholder="Ej. AL NASSR LOCAL 2025" style="border-color: var(--primary-color);">
+                    <input type="text" id="font-custom-name" placeholder="Ej. AL NASSR LIGA 2025" style="border-color: var(--primary-color);">
+                </div>
+
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="color: var(--secondary-color);">2. Definir variantes/estilos (separados por coma):</label>
+                    <input type="text" id="font-styles-input" placeholder="Ej. LOCAL, VISITA, ALTERNATIVA" value="ESTILO 1">
+                    <p style="font-size: 0.75rem; color: #94a3b8; margin: 2px 0 0 0;">La IA agrupará los colores e intentará asignarlos automáticamente a estos estilos.</p>
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
-                    <label>2. Cargar archivo PDF:</label>
+                    <label>3. Cargar archivo PDF:</label>
                     <input type="file" id="pdf-ai-upload" accept="application/pdf">
 
                     <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarPDFAuto()">Escanear Documento</button>
@@ -170,16 +177,16 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
-                    <label>3. Guardar tipografía en la Nube:</label>
+                    <label>4. Guardar tipografía en la Nube:</label>
                     <button id="btn-save-abc" class="btn-save-abc" onclick="guardarAbecedarioSupabase()">Guardar en Base de Datos</button>
-                    <p style="font-size: 0.8rem; color: #64748b; text-align: left; margin-top: 10px;">Nota: Verifique los caracteres marcados en rojo. Elimine los elementos incorrectos con el botón de descartar. Puede editar el campo inferior de cada elemento para agrupar las piezas por estilo o color.</p>
+                    <p style="font-size: 0.8rem; color: #64748b; text-align: left; margin-top: 10px;">Nota: Verifique los caracteres marcados en rojo. Elimine los elementos incorrectos con el botón de descartar. Puede cambiar la variante asignada usando el menú desplegable en cada pieza.</p>
                 </div>
             </div>
 
             <div class="preview-panel">
                 <div class="canvas-header">
                     <h2 style="margin: 0;">Resultados del Procesamiento OCR</h2>
-                    <p>El sistema agrupará automáticamente los caracteres con tonos similares.</p>
+                    <p>La IA ha pre-seleccionado un estilo basado en grupos de color. Puede ajustarlo manualmente.</p>
                 </div>
                 <div class="pdf-gallery-master" id="pdf-gallery-master">
                     <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">
@@ -428,6 +435,11 @@
             let src, gray, thresh, contours, hierarchy, mask, maskClone;
             
             try {
+                // Obtener estilos definidos por el usuario
+                let rawStyles = document.getElementById('font-styles-input').value;
+                let estilosUsuario = rawStyles.split(',').map(s => s.trim().toUpperCase()).filter(s => s !== '');
+                if (estilosUsuario.length === 0) estilosUsuario = ["DEFECTO"];
+
                 src = cv.imread(canvas); 
                 gray = new cv.Mat(); 
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
@@ -445,7 +457,7 @@
                 
                 mask = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
 
-                // Memoria de colores (Clustering Euclidiano)
+                // Memoria de colores (Clustering Euclidiano para asistir a la IA)
                 let paletaDetectada = [];
                 const umbralDistanciaColor = 75; 
 
@@ -483,9 +495,8 @@
                             }
                         }
 
-                        let isPattern = false;
-                        let hexColor = "#334155";
                         let borderStyleColor = "#334155";
+                        let clusterIndex = -1;
 
                         if (opaqueCount > 0) {
                             let rAvg = Math.round(rSum/opaqueCount);
@@ -493,39 +504,36 @@
                             let bAvg = Math.round(bSum/opaqueCount);
                             
                             let rFinal = rAvg, gFinal = gAvg, bFinal = bAvg;
-                            let colorEncontrado = null;
 
-                            for (let c of paletaDetectada) {
-                                let dist = Math.sqrt(Math.pow(rAvg - c.r, 2) + Math.pow(gAvg - c.g, 2) + Math.pow(bAvg - c.b, 2));
+                            // Buscar el grupo de color más cercano
+                            for (let c = 0; c < paletaDetectada.length; c++) {
+                                let colorData = paletaDetectada[c];
+                                let dist = Math.sqrt(Math.pow(rAvg - colorData.r, 2) + Math.pow(gAvg - colorData.g, 2) + Math.pow(bAvg - colorData.b, 2));
                                 if (dist < umbralDistanciaColor) {
-                                    colorEncontrado = c;
+                                    clusterIndex = c;
+                                    rFinal = colorData.r;
+                                    gFinal = colorData.g;
+                                    bFinal = colorData.b;
                                     break;
                                 }
                             }
 
-                            if (colorEncontrado) {
-                                rFinal = colorEncontrado.r;
-                                gFinal = colorEncontrado.g;
-                                bFinal = colorEncontrado.b;
-                            } else {
+                            // Si es un color nuevo, crear nuevo grupo
+                            if (clusterIndex === -1) {
                                 paletaDetectada.push({r: rAvg, g: gAvg, b: bAvg});
+                                clusterIndex = paletaDetectada.length - 1;
                             }
 
-                            hexColor = "#" + ((1 << 24) + (rFinal << 16) + (gFinal << 8) + bFinal).toString(16).slice(1).toUpperCase();
-                            borderStyleColor = hexColor;
-
-                            let varianceSum = 0;
-                            for (let j = 0; j < data.length; j += 4) {
-                                if (data[j+3] > 0) {
-                                    varianceSum += Math.pow(data[j] - rAvg, 2) + Math.pow(data[j+1] - gAvg, 2) + Math.pow(data[j+2] - bAvg, 2);
-                                }
-                            }
-                            let variance = varianceSum / opaqueCount;
-                            
-                            isPattern = variance > 2500; 
+                            borderStyleColor = "#" + ((1 << 24) + (rFinal << 16) + (gFinal << 8) + bFinal).toString(16).slice(1).toUpperCase();
                         }
 
-                        let etiquetaVisual = isPattern ? "PATRON " + hexColor : "SOLIDO " + hexColor;
+                        // La IA predice a qué estilo pertenece según el orden en que descubrió los colores
+                        let guessedStyle = estilosUsuario[Math.min(Math.max(0, clusterIndex), estilosUsuario.length - 1)];
+
+                        // Generar las opciones del menú desplegable
+                        let optionsHtml = estilosUsuario.map(estilo => 
+                            `<option value="${estilo}" ${estilo === guessedStyle ? 'selected' : ''}>${estilo}</option>`
+                        ).join('');
 
                         tCtx.putImageData(imgData, 0, 0);
                         maskClone.delete();
@@ -540,7 +548,9 @@
                                 <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')" title="Descartar imagen">✕</button>
                                 <img src="${base64}">
                                 <input type="text" class="char-mapper ocr-loading" id="map_${idPieza}" maxlength="1" placeholder="...">
-                                <input type="text" class="style-mapper" id="style_${idPieza}" value="${etiquetaVisual}">
+                                <select class="style-mapper" id="style_${idPieza}" title="Estilo / Variante asignada">
+                                    ${optionsHtml}
+                                </select>
                             </div>
                         `);
 
@@ -644,6 +654,7 @@
             piezasExtraidasTemp.forEach(pieza => {
                 let char = document.getElementById(`map_${pieza.id}`).value.toUpperCase();
                 let estiloInput = document.getElementById(`style_${pieza.id}`);
+                // Ahora lee el .value del select
                 let estilo = estiloInput ? estiloInput.value.trim().toUpperCase() : "DEFECTO";
                 if (!estilo) estilo = "DEFECTO";
 
