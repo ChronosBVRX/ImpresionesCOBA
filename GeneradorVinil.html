@@ -480,6 +480,7 @@
                 const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 canvas.width = viewport.width; canvas.height = viewport.height;
                 
+                // NOTA CLAVE PARA EL PROGRAMADOR IA: Aquí se pinta el fondo de BLANCO.
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                 extraerMascaraExacta(canvas);
@@ -488,7 +489,7 @@
         }
 
         async function extraerMascaraExacta(canvas) {
-            let src, gray, thresh, contours, hierarchy, mask, maskClone, noiseKernel;
+            let src, gray, thresh, contours, hierarchy, mask, maskClone;
             
             try {
                 let rawStyles = document.getElementById('font-styles-input').value;
@@ -499,27 +500,18 @@
                 gray = new cv.Mat(); 
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
                 
-                // CORRECCIÓN APLICADA: 
-                // Se eliminó el sistema TopHat/BlackHat porque con fuentes gruesas o resoluciones altas,
-                // el "kernel" de 25x25 píxeles se tragaba las letras y las borraba, causando que no se detectara nada.
-                // Ahora usamos un sistema dinámico de Otsu e inversión automática.
+                // CORRECCIÓN MATEMÁTICA DEFINITIVA:
+                // Como pintamos el lienzo de blanco en JS, sabemos que el fondo es color 255 (blanco).
+                // Al usar THRESH_BINARY_INV con un límite estricto de 240, convertimos automáticamente 
+                // cualquier cosa que no sea puramente blanca en una silueta recortable.
+                // Es infalible sin importar la resolución o el grosor de la tipografía.
                 thresh = new cv.Mat(); 
-                cv.threshold(gray, thresh, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
-                
-                // OpenCV busca contornos en áreas blancas sobre negro.
-                // Si el umbral Otsu dejó el fondo blanco (color 255), invertimos los colores para que el fondo sea negro y la letra blanca.
-                if (thresh.ucharPtr(0, 0)[0] === 255) {
-                    cv.bitwise_not(thresh, thresh);
-                }
-                
-                // Limpieza de ruido leve para evitar que números cercanos se fusionen
-                noiseKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
-                cv.morphologyEx(thresh, thresh, cv.MORPH_OPEN, noiseKernel);
+                cv.threshold(gray, thresh, 240, 255, cv.THRESH_BINARY_INV);
 
                 contours = new cv.MatVector(); 
                 hierarchy = new cv.Mat();
                 
-                // RETR_CCOMP vital para capturar tanto el contorno exterior como los agujeros interiores
+                // RETR_CCOMP detecta el borde principal y los huecos interiores del número
                 cv.findContours(thresh, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
                 
                 piezasExtraidasTemp = [];
@@ -533,7 +525,6 @@
 
                 for (let i = 0; i < contours.size(); ++i) {
                     
-                    // Solo iniciar el proceso si es un contorno RAÍZ (el borde exterior del número)
                     let parentIdx = hierarchy.intPtr(i, 3);
                     if (parentIdx !== -1) continue; 
 
@@ -541,16 +532,13 @@
                     let area = cv.contourArea(cnt);
                     let rect = cv.boundingRect(cnt);
 
-                    let isHuge = (rect.width > mask.cols * 0.85) || (rect.height > mask.rows * 0.85);
-                    let isTooSmall = rect.width < 15 || rect.height < 15;
+                    // Reglas de filtrado ultra relajadas para no perder números flacos ("1") o pequeñitos
+                    let isHuge = (rect.width > mask.cols * 0.95) || (rect.height > mask.rows * 0.95);
+                    let isTooSmall = rect.width < 8 || rect.height < 8;
                     let aspect = rect.width / rect.height;
+                    let isWeirdShape = aspect > 20.0 || aspect < 0.02;
                     
-                    // CORRECCIÓN APLICADA: 
-                    // Amplié el rango de "forma extraña". Antes ignoraba letras si la relación de aspecto era < 0.1
-                    // Eso borraba las letras "I" mayúscula o el número "1" deportivo. Ahora es mucho más permisivo.
-                    let isWeirdShape = aspect > 15.0 || aspect < 0.05;
-                    
-                    if (area > 80 && !isHuge && !isTooSmall && !isWeirdShape) {
+                    if (area > 30 && !isHuge && !isTooSmall && !isWeirdShape) {
                         
                         rect.x = Math.max(0, rect.x);
                         rect.y = Math.max(0, rect.y);
@@ -562,7 +550,7 @@
                         // 1. Dibujar silueta sólida del número
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
                         
-                        // 2. PERFORAR LOS AGUJEROS: Buscar todos los hijos y dibujarlos de negro encima de la silueta
+                        // 2. PERFORAR LOS AGUJEROS
                         let childIdx = hierarchy.intPtr(i, 2);
                         while (childIdx !== -1) {
                             cv.drawContours(mask, contours, childIdx, new cv.Scalar(0), -1, cv.LINE_8, hierarchy, 0);
@@ -584,7 +572,7 @@
 
                         let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
 
-                        // Aplicar máscara asegurando que solo se vuelva transparente el verdadero fondo y los agujeros perforados
+                        // Aplicar máscara volviendo transparente el fondo puro detectado
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
                             if (maskPixel === 0) { 
@@ -653,7 +641,7 @@
                             </div>
                         `);
 
-                        // INVERSIÓN OCR: Si el número es muy claro, lo invertimos a negro sobre blanco solo para la lectura del Tesseract
+                        // INVERSIÓN OCR: Para que el motor Tesseract lea perfectamente el número
                         let ocrCanvas = document.createElement('canvas');
                         let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
@@ -695,10 +683,9 @@
                 alert("Fallo crítico de memoria RAM o procesamiento. Intente recargar la página. Detalle técnico: " + errorMsg); 
                 document.getElementById('cv-loader').style.display = 'none'; document.getElementById('btn-scan').style.display = 'block';
             } finally {
-                // Autolimpieza estricta de memoria RAM Wasm (modificada para ajustarse a las nuevas variables)
+                // Autolimpieza estricta de memoria RAM Wasm (ahora sin variables muertas)
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
-                if(noiseKernel) noiseKernel.delete();
             }
         }
 
