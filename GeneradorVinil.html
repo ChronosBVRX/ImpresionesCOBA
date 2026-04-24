@@ -488,7 +488,9 @@
                     await tesseractWorker.initialize('eng');
                     await tesseractWorker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.SINGLE_CHAR, 
-                        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ.,-'
+                        // CORRECCIÓN 1: Se eliminaron los signos '.,-' de la lista blanca. 
+                        // Solo detectará letras de la A a la Z y números del 0 al 9.
+                        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ'
                     });
                 } catch(e) {
                     console.error("Error cargando Tesseract:", e);
@@ -510,7 +512,9 @@
 
                 try {
                     const { data: { text, confidence } } = await tesseractWorker.recognize(base64Image);
-                    let cleanText = text.replace(/[^A-Za-z0-9ÁÉÍÓÚÑ.,-]/g, '').trim();
+                    // CORRECCIÓN 2: Expresión regular ajustada para bloquear y limpiar cualquier signo,
+                    // asegurando que si la IA se equivoca, no imprima símbolos extraños.
+                    let cleanText = text.replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/g, '').trim();
                     inputElement.classList.remove('ocr-loading');
                     
                     if (confidence > 40 && cleanText.length > 0) {
