@@ -86,7 +86,8 @@
         .char-mapper.ocr-loading { border-color: var(--highlight) !important; background-color: rgba(59, 130, 246, 0.1) !important; animation: pulse 1.5s infinite; }
         
         /* Input de estilo/color */
-        .style-mapper { width: 100% !important; font-size: 0.75rem !important; text-align: center; padding: 5px !important; border-radius: 4px; border: 1px solid var(--border-color); background-color: #0b1120; color: #cbd5e1; }
+        .style-mapper { width: 100% !important; font-size: 0.75rem !important; text-align: center; padding: 5px !important; border-radius: 4px; border: 1px solid var(--border-color); background-color: #0b1120; color: #cbd5e1; font-weight: bold; }
+        .style-mapper:focus { border-color: var(--primary-color); outline: none; }
 
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
@@ -165,14 +166,14 @@
                 <div class="form-group" style="margin-top: 15px;">
                     <label>3. Confirma la lectura de la IA y guarda:</label>
                     <button id="btn-save-abc" class="btn-save-abc" onclick="guardarAbecedarioSupabase()">☁️ Subir a Supabase</button>
-                    <p style="font-size: 0.8rem; color: #64748b; text-align: center;">Nota: Verifica los cuadros en rojo (La IA tuvo dudas). Borra los puntos o basura con la papelera 🗑️. Ajusta el "Estilo" si lo deseas.</p>
+                    <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 10px;">Nota: Verifica los cuadros en rojo. Borra la basura con la papelera 🗑️. Si deseas, puedes escribir manualmente el mismo nombre (ej. "AZUL") en las cajas inferiores para forzar la agrupación.</p>
                 </div>
             </div>
 
             <div class="preview-panel">
                 <div class="canvas-header">
                     <h2 style="margin: 0;">Resultados del Escáner OCR</h2>
-                    <p>La IA detecta automáticamente el color dominante y si la pieza tiene un "Patrón".</p>
+                    <p>La IA agrupará tonos similares automáticamente en "Estilos".</p>
                 </div>
                 <div class="pdf-gallery-master" id="pdf-gallery-master">
                     <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">
@@ -334,11 +335,10 @@
                 selectorFuentesDB.innerHTML = '<option value="">-- Sube fuentes a Supabase primero --</option>';
             } else {
                 nombres.forEach(nombre => { selectorFuentesDB.innerHTML += `<option value="${nombre}">${nombre}</option>`; });
-                actualizarSelectorEstilos(); // Actualizar estilos de la primera fuente seleccionada
+                actualizarSelectorEstilos();
             }
         }
 
-        // NUEVA FUNCIÓN: Identifica los estilos dentro de la fuente seleccionada (Retrocompatible)
         function actualizarSelectorEstilos() {
             const fontName = selectorFuentesDB.value;
             const containerStyle = document.getElementById('group-style-selector');
@@ -354,9 +354,7 @@
             const keys = Object.keys(fontData);
             if (keys.length === 0) return;
 
-            // Detección de formato viejo vs nuevo
             let isOldFormat = false;
-            // Si el primer elemento del objeto tiene una propiedad "src", es formato viejo (no anidado)
             if (fontData[keys[0]] && fontData[keys[0]].src) {
                 isOldFormat = true;
             }
@@ -463,7 +461,6 @@
                         maskRoi.copyTo(maskClone); 
                         let maskData = maskClone.data;
 
-                        // Cálculo de Promedio de Color y Varianza (Para detectar patrón)
                         let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
 
                         for (let j = 0; j < data.length; j += 4) { 
@@ -471,7 +468,6 @@
                             if (maskPixel === 0 || (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200)) { 
                                 data[j+3] = 0; 
                             } else {
-                                // Píxel visible: acumulamos para promediar color
                                 rSum += data[j]; gSum += data[j+1]; bSum += data[j+2];
                                 opaqueCount++;
                             }
@@ -485,11 +481,17 @@
                             let rAvg = Math.round(rSum/opaqueCount);
                             let gAvg = Math.round(gSum/opaqueCount);
                             let bAvg = Math.round(bSum/opaqueCount);
-                            // Convierte RGB a Hexadecimal
-                            hexColor = "#" + ((1 << 24) + (rAvg << 16) + (gAvg << 8) + bAvg).toString(16).slice(1);
+                            
+                            // CORRECCIÓN CLAVE: Tolerancia de Color (Cuantización)
+                            // Redondeamos los RGB a intervalos de 35 para que tonos similares caigan en la misma cubeta.
+                            const tolerancia = 35;
+                            let rQ = Math.min(255, Math.max(0, Math.round(rAvg / tolerancia) * tolerancia));
+                            let gQ = Math.min(255, Math.max(0, Math.round(gAvg / tolerancia) * tolerancia));
+                            let bQ = Math.min(255, Math.max(0, Math.round(bAvg / tolerancia) * tolerancia));
+
+                            hexColor = "#" + ((1 << 24) + (rQ << 16) + (gQ << 8) + bQ).toString(16).slice(1);
                             borderStyleColor = hexColor;
 
-                            // Calcular Varianza para identificar si es sólido o tiene un patrón/logo
                             let varianceSum = 0;
                             for (let j = 0; j < data.length; j += 4) {
                                 if (data[j+3] > 0) {
@@ -497,7 +499,6 @@
                                 }
                             }
                             let variance = varianceSum / opaqueCount;
-                            // Umbral empírico: Más de 1000 de varianza suele implicar un segundo color o gradiente complejo
                             isPattern = variance > 1000;
                         }
 
@@ -516,11 +517,10 @@
                                 <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')" title="Descartar imagen">🗑️</button>
                                 <img src="${base64}">
                                 <input type="text" class="char-mapper ocr-loading" id="map_${idPieza}" maxlength="1" placeholder="IA...">
-                                <input type="text" class="style-mapper" id="style_${idPieza}" value="${etiquetaVisual}" title="Puedes editar este estilo manualmente">
+                                <input type="text" class="style-mapper" id="style_${idPieza}" value="${etiquetaVisual}">
                             </div>
                         `);
 
-                        // PREPARACIÓN DE IMAGEN PARA LA IA (Fondo blanco brillante para no confundirla)
                         let ocrCanvas = document.createElement('canvas');
                         let pad = 20; 
                         ocrCanvas.width = rect.width + (pad * 2);
@@ -615,7 +615,6 @@
             let nombreFuente = document.getElementById('font-custom-name').value.trim();
             if (!nombreFuente) { alert("Nombre obligatorio para guardar en la Nube."); return; }
 
-            // MODIFICADO: Ahora agrupamos las letras bajo su "Estilo" correspondiente
             let abcNuevo = {}; 
             let guardadas = 0;
 
@@ -645,7 +644,7 @@
                     baseDatosGlobal[nombreFuente] = abcNuevo;
                     actualizarSelectorFuentes(); 
                     selectorFuentesDB.value = nombreFuente;
-                    actualizarSelectorEstilos(); // Refrescar menú de estilos en producción
+                    actualizarSelectorEstilos();
                     
                     document.getElementById('font-custom-name').value = "";
                     document.getElementById('pdf-gallery-master').innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">Sube otro PDF para crear más fuentes.</div>';
@@ -698,12 +697,11 @@
             const containerStyle = document.getElementById('group-style-selector');
             let abcAUsar;
 
-            // Detectamos si la fuente tiene estilos o es una fuente antigua plana
             if (containerStyle.style.display !== 'none') {
                 const estiloSeleccionado = document.getElementById('db-style-selector').value;
                 abcAUsar = fontData[estiloSeleccionado];
             } else {
-                abcAUsar = fontData; // Backwards compatibility para bases de datos viejas
+                abcAUsar = fontData; 
             }
 
             if (!abcAUsar) { alert("No se encontró información para el estilo seleccionado."); return; }
@@ -730,7 +728,6 @@
             }
             if(caracteresArmados.length === 0) return;
 
-            // Extraemos info visual para la cola
             let styleLabel = containerStyle.style.display !== 'none' ? ` (${document.getElementById('db-style-selector').value})` : '';
 
             colaProduccion.push({
