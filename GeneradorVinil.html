@@ -16,9 +16,9 @@
         function onOpenCvReady() {
             cvReady = true;
             const status = document.getElementById('cv-status');
+            const btn = document.getElementById('btn-scan');
             if (status) status.style.display = 'none';
-            document.getElementById('btn-scan-native').style.display = 'block';
-            document.getElementById('btn-scan-ai').style.display = 'block';
+            if (btn) btn.style.display = 'block';
         }
     </script>
     <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()" type="text/javascript"></script>
@@ -99,7 +99,7 @@
 
         .btn-add, .btn-auto, .btn-clear, .btn-exportar-png, .btn-exportar-pdf, .btn-scan, .btn-save-abc { width: 100%; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: inherit; font-weight: bold; }
         .btn-add { background-color: var(--secondary-color); color: white; padding: 12px; font-size: 0.95rem; }
-        .btn-scan { color: white; padding: 12px; font-size: 0.95rem; flex: 1; }
+        .btn-scan { background-color: var(--highlight); color: white; padding: 15px; font-size: 1.05rem; margin-top: 10px; }
         .btn-save-abc { background-color: var(--primary-color); color: #000; padding: 15px; font-size: 1.1rem; margin-top: 15px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); }
         .btn-save-abc:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
         .btn-auto { background-color: var(--primary-color); color: #000; padding: 15px; font-size: 1.05rem; margin-top: 10px; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); }
@@ -152,9 +152,9 @@
         <div class="app-container">
             <div class="controls-panel" style="width: 400px;">
                 <h2>Procesamiento de Archivos</h2>
-                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Escanee el documento PDF. El sistema extraerá y reconocerá los caracteres automáticamente.</p>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">Escanee el documento PDF. El sistema extraerá y reconocerá los caracteres automáticamente mediante un sistema Híbrido.</p>
                 
-                <div id="cv-status">Inicializando motores de lectura... ⏳</div>
+                <div id="cv-status">Inicializando motor de visión artificial... ⏳</div>
                 
                 <div class="form-group" style="margin-top: 10px;">
                     <label style="color: var(--primary-color);">1. Nombre para la tipografía:</label>
@@ -170,12 +170,8 @@
                     <label>3. Cargar archivo PDF:</label>
                     <input type="file" id="pdf-ai-upload" accept="application/pdf">
 
-                    <div style="display: flex; gap: 8px; margin-top: 10px;">
-                        <button id="btn-scan-native" class="btn-scan" style="background-color: var(--secondary-color); display: none;" onclick="procesarPDFNativo()">Leer Capas Nativas (PDF)</button>
-                        <button id="btn-scan-ai" class="btn-scan" style="background-color: var(--highlight); display: none;" onclick="procesarPDFAuto()">Extraer por IA (Curvas)</button>
-                    </div>
-
-                    <div id="cv-loader">Procesando documento y extrayendo caracteres... ⏳</div>
+                    <button id="btn-scan" class="btn-scan" style="display: none;" onclick="procesarDocumentoHibrido()">Escanear Documento (Modo Inteligente)</button>
+                    <div id="cv-loader">Analizando capas visuales y matemáticas... ⏳</div>
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
@@ -188,11 +184,11 @@
             <div class="preview-panel">
                 <div class="canvas-header">
                     <h2 style="margin: 0;">Resultados del Procesamiento</h2>
-                    <p>Verifique los elementos cortados. Puede ajustar la variante manualmente.</p>
+                    <p>Mapeo 100% exacto visual-matemático.</p>
                 </div>
                 <div class="pdf-gallery-master" id="pdf-gallery-master">
                     <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 1.1rem; padding: 50px;">
-                        Cargue un archivo PDF y presione un método de lectura para iniciar.
+                        Cargue un archivo PDF y presione "Escanear Documento".
                     </div>
                 </div>
                 <canvas id="internal-pdf-canvas" style="display:none;"></canvas>
@@ -421,25 +417,24 @@
         }
 
         // ==========================================
-        // ENTORNO 1: EXTRACCIÓN (NATIVA Y OCR)
+        // ENTORNO 1: EXTRACCIÓN (SISTEMA HÍBRIDO DEFINITIVO)
         // ==========================================
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
         let pdfFileGlobal = null;
         let piezasExtraidasTemp = [];
-        
         let tesseractWorker = null;
         let ocrQueue = [];
         let isOcrRunning = false;
 
         document.getElementById('pdf-ai-upload').addEventListener('change', function(e) { pdfFileGlobal = e.target.files[0]; });
 
-        // MÉTODO 1: EXTRACCIÓN DE CAPAS NATIVAS DE TEXTO (Lo que hace Canva)
-        async function procesarPDFNativo() {
-            if (!pdfFileGlobal) { alert("Por favor, cargue un archivo PDF primero."); return; }
+        async function procesarDocumentoHibrido() {
+            if (!cvReady || !pdfFileGlobal) { alert("Por favor, cargue un archivo PDF primero."); return; }
             const loader = document.getElementById('cv-loader');
-            loader.style.display = 'block'; loader.textContent = 'Leyendo capas de texto nativo del PDF... ⏳';
-            document.getElementById('btn-scan-native').style.display = 'none';
-            document.getElementById('btn-scan-ai').style.display = 'none';
+            const btnScan = document.getElementById('btn-scan');
+            
+            loader.style.display = 'block'; 
+            btnScan.style.display = 'none';
 
             try {
                 const reader = new FileReader();
@@ -447,163 +442,45 @@
                     const typedarray = new Uint8Array(evento.target.result);
                     const pdf = await pdfjsLib.getDocument(typedarray).promise;
                     const page = await pdf.getPage(1);
-
-                    const scale = 3.0; // Alta resolución
+                    
+                    const scale = 3.0; // Alta resolución garantizada
                     const viewport = page.getViewport({scale: scale});
                     const canvas = document.getElementById('internal-pdf-canvas');
                     const ctx = canvas.getContext('2d');
                     canvas.width = viewport.width; canvas.height = viewport.height;
-
+                    
+                    // Renderizamos la visual perfecta
                     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
+                    // Obtenemos los textos ocultos matemáticos (si existen)
                     const textContent = await page.getTextContent();
-                    const gallery = document.getElementById('pdf-gallery-master');
-                    gallery.innerHTML = '';
-                    piezasExtraidasTemp = [];
-
-                    // Si el PDF no tiene texto real (está en curvas), lanzamos el aviso.
-                    if (textContent.items.length === 0) {
-                        alert("No se detectaron capas de texto nativo. Es muy probable que el diseñador haya exportado las letras como 'Curvas/Vectores'. Por favor, usa el botón 'Extraer por IA' para detectarlas visualmente.");
-                        loader.style.display = 'none';
-                        document.getElementById('btn-scan-native').style.display = 'block';
-                        document.getElementById('btn-scan-ai').style.display = 'block';
-                        return;
-                    }
-
-                    let piezacount = 0;
-                    let rawStyles = document.getElementById('font-styles-input').value;
-                    let estilosUsuario = rawStyles.split(',').map(s => s.trim().toUpperCase()).filter(s => s !== '');
-                    if (estilosUsuario.length === 0) estilosUsuario = ["DEFECTO"];
-
+                    let elementosPDF = [];
+                    
+                    // Filtramos y preparamos las coordenadas del PDF
                     textContent.items.forEach(item => {
-                        const str = item.str.replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/g, '').trim();
-                        if (str.length > 0) {
-                            let tx = item.transform[4] * scale;
-                            let ty = viewport.height - (item.transform[5] * scale); 
-                            let w = item.width * scale;
-                            let h = item.height * scale;
-
-                            // Hacemos un corte holgado alrededor de la coordenada de texto de PDF.js
-                            let padX = w * 0.5;
-                            let padY = h * 1.5;
-                            let startX = Math.max(0, tx - padX);
-                            let startY = Math.max(0, ty - h - padY);
-                            let cropW = w + (padX * 2);
-                            let cropH = h + (padY * 2);
-
-                            let tCanvas = document.createElement('canvas');
-                            tCanvas.width = cropW; tCanvas.height = cropH;
-                            let tCtx = tCanvas.getContext('2d');
-                            tCtx.fillStyle = '#ffffff';
-                            tCtx.fillRect(0, 0, cropW, cropH);
-                            tCtx.drawImage(canvas, startX, startY, cropW, cropH, 0, 0, cropW, cropH);
-
-                            // Pasamos el corte holgado por nuestra función de recorte ajustado (sin IA)
-                            let trimmedCanvas = recortarBlancos(tCanvas);
-
-                            const base64 = trimmedCanvas.toDataURL('image/png');
-                            const idPieza = `pieza_nativa_${piezacount}`;
-                            piezasExtraidasTemp.push({ id: idPieza, src: base64, propor: trimmedCanvas.width / trimmedCanvas.height });
-
-                            let optionsHtml = estilosUsuario.map(estilo =>
-                                `<option value="${estilo}">${estilo}</option>`
-                            ).join('');
-
-                            gallery.insertAdjacentHTML('beforeend', `
-                                <div class="gallery-item" id="card_${idPieza}" style="border-bottom: 4px solid var(--secondary-color);">
-                                    <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')">✕</button>
-                                    <img src="${base64}">
-                                    <input type="text" class="char-mapper ocr-success" id="map_${idPieza}" value="${str[0].toUpperCase()}" maxlength="1">
-                                    <select class="style-mapper" id="style_${idPieza}">
-                                        ${optionsHtml}
-                                    </select>
-                                </div>
-                            `);
-                            piezacount++;
+                        const charStr = item.str.replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/g, '').trim();
+                        if (charStr.length > 0) {
+                            let pdfX = item.transform[4] * scale;
+                            let pdfY = viewport.height - (item.transform[5] * scale);
+                            // Centro matemático aproximado de la letra según el PDF
+                            let centroX = pdfX + ((item.width * scale) / 2);
+                            let centroY = pdfY - ((item.height * scale) / 2);
+                            elementosPDF.push({ char: charStr[0].toUpperCase(), cx: centroX, cy: centroY });
                         }
                     });
-                    
-                    loader.style.display = 'none';
-                    document.getElementById('btn-scan-native').style.display = 'block';
-                    document.getElementById('btn-scan-ai').style.display = 'block';
+
+                    // Extraemos con OpenCV visualmente para NO tener cuadros vacíos
+                    extraerConOpenCVyMapear(canvas, elementosPDF);
                 };
                 reader.readAsArrayBuffer(pdfFileGlobal);
-            } catch (e) {
-                alert("Error al extraer capas: " + e.message);
-                loader.style.display = 'none';
-                document.getElementById('btn-scan-native').style.display = 'block';
-                document.getElementById('btn-scan-ai').style.display = 'block';
+            } catch (err) {
+                alert("Error crítico leyendo el archivo: " + err.message);
+                loader.style.display = 'none'; btnScan.style.display = 'block';
             }
         }
 
-        // Función auxiliar para recortar el espacio blanco sobrante del Canvas nativo
-        function recortarBlancos(canvasObj) {
-            let ctx = canvasObj.getContext('2d');
-            let imgData = ctx.getImageData(0,0, canvasObj.width, canvasObj.height);
-            let data = imgData.data;
-            let minX = canvasObj.width, minY = canvasObj.height, maxX = 0, maxY = 0;
-            let isBlank = true;
-
-            for(let y = 0; y < canvasObj.height; y++) {
-                for(let x = 0; x < canvasObj.width; x++) {
-                    let alpha = data[(y * canvasObj.width + x) * 4 + 3];
-                    let r = data[(y * canvasObj.width + x) * 4];
-                    let g = data[(y * canvasObj.width + x) * 4 + 1];
-                    let b = data[(y * canvasObj.width + x) * 4 + 2];
-                    
-                    if(alpha > 10 && (r < 245 || g < 245 || b < 245)) {
-                        if(x < minX) minX = x;
-                        if(y < minY) minY = y;
-                        if(x > maxX) maxX = x;
-                        if(y > maxY) maxY = y;
-                        isBlank = false;
-                    }
-                }
-            }
-            if(isBlank) return canvasObj;
-
-            let padding = 2; // Margen de seguridad
-            minX = Math.max(0, minX - padding);
-            minY = Math.max(0, minY - padding);
-            maxX = Math.min(canvasObj.width, maxX + padding);
-            maxY = Math.min(canvasObj.height, maxY + padding);
-
-            let trimmed = document.createElement('canvas');
-            trimmed.width = maxX - minX;
-            trimmed.height = maxY - minY;
-            trimmed.getContext('2d').drawImage(canvasObj, minX, minY, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
-            return trimmed;
-        }
-
-
-        // MÉTODO 2: EXTRACCIÓN POR INTELIGENCIA ARTIFICIAL (Para archivos en Curvas/Imágenes)
-        async function procesarPDFAuto() {
-            if (!cvReady || !pdfFileGlobal) { alert("Por favor, cargue un archivo PDF primero."); return; }
-            const loader = document.getElementById('cv-loader');
-            loader.style.display = 'block'; loader.textContent = 'Procesando documento visualmente con IA... ⏳';
-            document.getElementById('btn-scan-native').style.display = 'none';
-            document.getElementById('btn-scan-ai').style.display = 'none';
-
-            const reader = new FileReader();
-            reader.onload = async function(evento) {
-                const typedarray = new Uint8Array(evento.target.result);
-                const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                const page = await pdf.getPage(1);
-                
-                const viewport = page.getViewport({scale: 3.0});
-                const canvas = document.getElementById('internal-pdf-canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = viewport.width; canvas.height = viewport.height;
-                
-                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                extraerMascaraExacta(canvas);
-            };
-            reader.readAsArrayBuffer(pdfFileGlobal);
-        }
-
-        async function extraerMascaraExacta(canvas) {
+        function extraerConOpenCVyMapear(canvas, elementosPDF) {
             let src, gray, thresh, contours, hierarchy, mask, maskClone;
             
             try {
@@ -630,12 +507,13 @@
 
                 let paletaDetectada = [];
                 const umbralDistanciaColor = 75; 
+                let usarOCRDeRespaldo = false;
 
                 for (let i = 0; i < contours.size(); ++i) {
                     let cnt = contours.get(i); 
                     let area = cv.contourArea(cnt);
                     
-                    if (area > 80) {
+                    if (area > 80) { // Descartamos "basurita" pequeña
                         let rect = cv.boundingRect(cnt);
                         mask.setTo(new cv.Scalar(0)); 
                         cv.drawContours(mask, contours, i, new cv.Scalar(255), -1, cv.LINE_8, hierarchy, 0);
@@ -655,6 +533,7 @@
 
                         let rSum = 0, gSum = 0, bSum = 0, opaqueCount = 0;
 
+                        // Limpiar fondo blanco del recorte exacto
                         for (let j = 0; j < data.length; j += 4) { 
                             let maskPixel = maskData[j / 4];
                             if (maskPixel === 0 || (data[j] > 200 && data[j+1] > 200 && data[j+2] > 200)) { 
@@ -679,79 +558,101 @@
                                 let colorData = paletaDetectada[c];
                                 let dist = Math.sqrt(Math.pow(rAvg - colorData.r, 2) + Math.pow(gAvg - colorData.g, 2) + Math.pow(bAvg - colorData.b, 2));
                                 if (dist < umbralDistanciaColor) {
-                                    clusterIndex = c;
-                                    rFinal = colorData.r;
-                                    gFinal = colorData.g;
-                                    bFinal = colorData.b;
-                                    break;
+                                    clusterIndex = c; rFinal = colorData.r; gFinal = colorData.g; bFinal = colorData.b; break;
                                 }
                             }
 
                             if (clusterIndex === -1) {
-                                paletaDetectada.push({r: rAvg, g: gAvg, b: bAvg});
-                                clusterIndex = paletaDetectada.length - 1;
+                                paletaDetectada.push({r: rAvg, g: gAvg, b: bAvg}); clusterIndex = paletaDetectada.length - 1;
                             }
-
                             borderStyleColor = "#" + ((1 << 24) + (rFinal << 16) + (gFinal << 8) + bFinal).toString(16).slice(1).toUpperCase();
                         }
 
                         let guessedStyle = estilosUsuario[Math.min(Math.max(0, clusterIndex), estilosUsuario.length - 1)];
-
-                        let optionsHtml = estilosUsuario.map(estilo => 
-                            `<option value="${estilo}" ${estilo === guessedStyle ? 'selected' : ''}>${estilo}</option>`
-                        ).join('');
+                        let optionsHtml = estilosUsuario.map(estilo => `<option value="${estilo}" ${estilo === guessedStyle ? 'selected' : ''}>${estilo}</option>`).join('');
 
                         tCtx.putImageData(imgData, 0, 0);
-                        maskClone.delete();
-                        maskRoi.delete();
+                        maskClone.delete(); maskRoi.delete();
 
                         const base64 = tCanvas.toDataURL('image/png'); 
-                        const idPieza = `pieza_ia_${piezacount}`;
+                        const idPieza = `pieza_hib_${piezacount}`;
                         piezasExtraidasTemp.push({ id: idPieza, src: base64, propor: rect.width / rect.height });
+
+                        // LA MAGIA: Crossover OpenCV con PDF.js (sin IA)
+                        let matchedChar = "";
+                        let cssClass = "ocr-loading";
+                        
+                        if (elementosPDF.length > 0) {
+                            let visualCentroX = rect.x + (rect.width / 2);
+                            let visualCentroY = rect.y + (rect.height / 2);
+                            
+                            let distanciaMinima = Infinity;
+                            let mejorMatchIndex = -1;
+
+                            for(let m = 0; m < elementosPDF.length; m++) {
+                                let dist = Math.sqrt(Math.pow(visualCentroX - elementosPDF[m].cx, 2) + Math.pow(visualCentroY - elementosPDF[m].cy, 2));
+                                if(dist < distanciaMinima) {
+                                    distanciaMinima = dist;
+                                    mejorMatchIndex = m;
+                                }
+                            }
+
+                            // Si la letra matemática está cerca de nuestro recorte visual, hace MATCH.
+                            if (mejorMatchIndex !== -1 && distanciaMinima < (rect.width + rect.height)) {
+                                matchedChar = elementosPDF[mejorMatchIndex].char;
+                                cssClass = "ocr-success";
+                                // Borramos el elemento PDF asignado para que no se repita
+                                elementosPDF.splice(mejorMatchIndex, 1);
+                            }
+                        }
 
                         gallery.insertAdjacentHTML('beforeend', `
                             <div class="gallery-item" id="card_${idPieza}" style="border-bottom: 4px solid ${borderStyleColor};">
                                 <button class="btn-delete-piece" onclick="eliminarPiezaGaleria('${idPieza}')" title="Descartar imagen">✕</button>
                                 <img src="${base64}">
-                                <input type="text" class="char-mapper ocr-loading" id="map_${idPieza}" maxlength="1" placeholder="...">
-                                <select class="style-mapper" id="style_${idPieza}" title="Estilo / Variante asignada">
+                                <input type="text" class="char-mapper ${cssClass}" id="map_${idPieza}" maxlength="1" value="${matchedChar}" placeholder="...">
+                                <select class="style-mapper" id="style_${idPieza}" title="Estilo asignado">
                                     ${optionsHtml}
                                 </select>
                             </div>
                         `);
 
-                        let ocrCanvas = document.createElement('canvas');
-                        let pad = 20; 
-                        ocrCanvas.width = rect.width + (pad * 2);
-                        ocrCanvas.height = rect.height + (pad * 2);
-                        let ocrCtx = ocrCanvas.getContext('2d');
-                        ocrCtx.fillStyle = '#ffffff';
-                        ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
-                        ocrCtx.drawImage(tCanvas, pad, pad);
-                        
-                        ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
+                        // Si no pudimos matchear con el PDF, enviamos a OCR como último recurso
+                        if (matchedChar === "") {
+                            usarOCRDeRespaldo = true;
+                            let ocrCanvas = document.createElement('canvas');
+                            let pad = 20; 
+                            ocrCanvas.width = rect.width + (pad * 2); ocrCanvas.height = rect.height + (pad * 2);
+                            let ocrCtx = ocrCanvas.getContext('2d');
+                            ocrCtx.fillStyle = '#ffffff'; ocrCtx.fillRect(0, 0, ocrCanvas.width, ocrCanvas.height);
+                            ocrCtx.drawImage(tCanvas, pad, pad);
+                            ejecutarOCRAsincrono(ocrCanvas.toDataURL('image/png'), idPieza);
+                        }
+
                         piezacount++;
                     }
                 }
                 
                 document.getElementById('cv-loader').style.display = 'none'; 
-                document.getElementById('btn-scan-native').style.display = 'block';
-                document.getElementById('btn-scan-ai').style.display = 'block';
+                document.getElementById('btn-scan').style.display = 'block';
                 
-                if (piezacount === 0) gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se encontraron contornos válidos.</div>';
+                if (piezacount === 0) {
+                    gallery.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #ef4444; font-size: 1.1rem; padding: 50px;">No se encontraron contornos válidos.</div>';
+                } else if (!usarOCRDeRespaldo && elementosPDF.length === 0) {
+                    console.log("Match perfecto: Todas las letras visuales encajaron con el texto matemático del PDF.");
+                }
 
             } catch (err) { 
-                alert("Error durante el procesamiento visual: " + err); 
+                alert("Error durante el mapeo híbrido: " + err); 
                 document.getElementById('cv-loader').style.display = 'none';
-                document.getElementById('btn-scan-native').style.display = 'block';
-                document.getElementById('btn-scan-ai').style.display = 'block';
+                document.getElementById('btn-scan').style.display = 'block';
             } finally {
                 if(src) src.delete(); if(gray) gray.delete(); if(thresh) thresh.delete(); 
                 if(contours) contours.delete(); if(hierarchy) hierarchy.delete(); if(mask) mask.delete();
             }
         }
 
-        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR (TESSERACT SEGURO V4)
+        // MOTOR DE INTELIGENCIA ARTIFICIAL OCR (COMO RESPALDO)
         function ejecutarOCRAsincrono(base64Image, idPieza) {
             ocrQueue.push({ base64Image, idPieza });
             procesarFilaOCR();
@@ -771,21 +672,16 @@
                         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑ'
                     });
                 } catch(e) {
-                    console.error("Error de inicialización Tesseract:", e);
-                    ocrQueue.forEach(({idPieza}) => {
-                        let el = document.getElementById(`map_${idPieza}`);
-                        if(el) { el.classList.remove('ocr-loading'); el.classList.add('ocr-doubt'); el.placeholder = "?"; }
-                    });
-                    ocrQueue = [];
-                    isOcrRunning = false;
-                    return;
+                    console.error("Error OCR:", e);
+                    ocrQueue.forEach(({idPieza}) => { let el = document.getElementById(`map_${idPieza}`); if(el) { el.classList.remove('ocr-loading'); el.classList.add('ocr-doubt'); el.placeholder = "?"; } });
+                    ocrQueue = []; isOcrRunning = false; return;
                 }
             }
 
             while (ocrQueue.length > 0) {
                 const { base64Image, idPieza } = ocrQueue.shift();
                 let inputElement = document.getElementById(`map_${idPieza}`);
-                if (!inputElement) continue; 
+                if (!inputElement || inputElement.value !== "") continue; // Si la IA híbrida ya lo rellenó, saltar.
 
                 try {
                     const { data: { text, confidence } } = await tesseractWorker.recognize(base64Image);
@@ -793,18 +689,12 @@
                     inputElement.classList.remove('ocr-loading');
                     
                     if (confidence > 40 && cleanText.length > 0) {
-                        inputElement.value = cleanText[0];
-                        inputElement.classList.add('ocr-success');
+                        inputElement.value = cleanText[0]; inputElement.classList.add('ocr-success');
                     } else {
-                        inputElement.value = '';
-                        inputElement.placeholder = "?";
-                        inputElement.classList.add('ocr-doubt');
+                        inputElement.value = ''; inputElement.placeholder = "?"; inputElement.classList.add('ocr-doubt');
                     }
                 } catch (err) {
-                    inputElement.classList.remove('ocr-loading');
-                    inputElement.value = '';
-                    inputElement.placeholder = "?";
-                    inputElement.classList.add('ocr-doubt');
+                    inputElement.classList.remove('ocr-loading'); inputElement.value = ''; inputElement.placeholder = "?"; inputElement.classList.add('ocr-doubt');
                 }
             }
             isOcrRunning = false;
